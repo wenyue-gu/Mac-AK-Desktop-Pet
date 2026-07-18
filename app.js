@@ -469,6 +469,7 @@ function loadEverything() {
                                 "Relax",
                                 true
                             );
+                            lastBehavior = "SomethingElse";
                         }
                     }
 

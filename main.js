@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu } = require("electron");
 
 let win;
 
@@ -97,3 +97,28 @@ app.on(
 
     }
 );
+
+const path = require("path");
+
+let tray;
+
+app.whenReady().then(() => {
+
+    tray = new Tray(
+        path.join(__dirname, "tray_icon.png")
+    );
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: "Quit",
+            click() {
+                app.quit();
+            }
+        }
+    ]);
+
+    tray.setToolTip(">:)");
+
+    tray.setContextMenu(contextMenu);
+
+});

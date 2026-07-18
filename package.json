@@ -8,9 +8,18 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^43.1.1"
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
   },
   "scripts": {
-    "start": "electron ."
-}
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.lucy.desktoppet",
+    "productName": "DesktopPet",
+    "mac": {
+      "target": "dmg"
+    }
+  }
 }
