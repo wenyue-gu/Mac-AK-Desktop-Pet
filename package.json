@@ -1,0 +1,16 @@
+{
+  "name": "spine-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^43.1.1"
+  },
+  "scripts": {
+    "start": "electron ."
+}
+}
