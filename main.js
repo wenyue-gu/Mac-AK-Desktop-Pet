@@ -105,7 +105,7 @@ let tray;
 app.whenReady().then(() => {
 
     tray = new Tray(
-        path.join(__dirname, "tray_icon2.png")
+        path.join(__dirname, "tray_icon3.png")
     );
 
     const contextMenu = Menu.buildFromTemplate([
