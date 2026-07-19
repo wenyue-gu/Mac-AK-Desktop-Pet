@@ -8,8 +8,8 @@ let petBounds = null;
 function createWindow() {
 
     win = new BrowserWindow({
-        width:400,
-        height:400,
+        width:1000,
+        height:1000,
 
         transparent:true,
         frame:false,

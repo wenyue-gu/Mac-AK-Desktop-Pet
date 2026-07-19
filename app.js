@@ -8,19 +8,19 @@ canvas.height = window.innerHeight;
 const petHitbox = document.getElementById("petHitbox");
 let isWalking = false;
 
-const gl = canvas.getContext("webgl", {
-    alpha: true
-});
+// const gl = canvas.getContext("webgl", {
+//     alpha: true
+// });
 
-if (!gl) {
-    alert("WebGL not supported");
-}
-gl.enable(gl.BLEND);
+// if (!gl) {
+//     alert("WebGL not supported");
+// }
+// gl.enable(gl.BLEND);
 
-gl.blendFunc(
-    gl.SRC_ALPHA,
-    gl.ONE_MINUS_SRC_ALPHA
-);
+// gl.blendFunc(
+//     gl.SRC_ALPHA,
+//     gl.ONE_MINUS_SRC_ALPHA
+// );
 
 // Spine setup
 
@@ -28,16 +28,13 @@ const context =
     new spine.webgl.ManagedWebGLRenderingContext(
         canvas,
         {
-            alpha: true,
-            premultipliedAlpha: false,
-            antialias: true
+            alpha: true
         }
     );
 
 const shader =
     spine.webgl.Shader.newTwoColoredTextured(
-        context,
-        false
+        context
     );
 
 const batcher =
@@ -46,17 +43,16 @@ const batcher =
 const skeletonRenderer =
     new spine.webgl.SkeletonRenderer(context);
 skeletonRenderer.premultipliedAlpha = true;
-
 const mvp =
     new spine.webgl.Matrix4();
 
-const zoom = 2.2;
+const zoom = 1;//2.2;
 
 mvp.ortho2d(
     0,
     0,
-    canvas.width * zoom,
-    canvas.height * zoom
+    window.innerWidth * zoom,
+    window.innerHeight * zoom
 );
 
 const assetManager =
@@ -301,6 +297,13 @@ function loadEverything() {
 
     const atlas =
         assetManager.get(atlasFile);
+        window.electronAPI.log(
+    "atlas regions=" + atlas.regions.length
+);
+
+window.electronAPI.log(
+    "first region=" + atlas.regions[0].name
+);
     const atlasLoader =
         new spine.AtlasAttachmentLoader(atlas);
     const binary =
@@ -309,7 +312,9 @@ function loadEverything() {
         new spine.SkeletonBinary(atlasLoader);
     const skeletonData =
         skeletonBinary.readSkeletonData(binary);
-
+window.electronAPI.log(
+    "TEST loaded skeleton data"
+);
     console.log(
         "Animations:",
         skeletonData.animations.map(
@@ -362,6 +367,7 @@ function loadEverything() {
 
     // click interaction
     petHitbox.onclick = () => {
+        window.electronAPI.log("CLICK HITBOX");
         isWalking = false;
         stopWalking();
         currentBehavior = "Interact";
@@ -571,7 +577,7 @@ let lastTime =
 
 const offset = new spine.Vector2();
 const size = new spine.Vector2();
-
+let debugHitboxPrinted = false;
 function render() {
     requestAnimationFrame(render);
     if (!activeCharacter)
@@ -618,15 +624,25 @@ function render() {
     //     1,
     //     1
     // );
-    gl.clearColor(
-        0,
-        0,
-        0,
-        0
-    );
+    // gl.clearColor(
+    //     0,
+    //     0,
+    //     0,
+    //     0
+    // );
 
-    gl.clear(
-        gl.COLOR_BUFFER_BIT
+    // gl.clear(
+    //     gl.COLOR_BUFFER_BIT
+    // );
+    context.gl.clearColor(
+    0,
+    0,
+    0,
+    0
+);
+
+    context.gl.clear(
+        context.gl.COLOR_BUFFER_BIT
     );
 
     shader.bind();
@@ -639,6 +655,8 @@ function render() {
         mvp.values
     );
     batcher.begin(shader);
+    skeletonRenderer.premultipliedAlpha = true;
+
     skeletonRenderer.draw(
         batcher,
         activeCharacter.skeleton
@@ -650,6 +668,7 @@ function render() {
 
 
 petHitbox.addEventListener("mouseenter", () => {
+    window.electronAPI.log("ENTER HITBOX");
     window.electronAPI.setIgnoreMouse(false);
 });
 
