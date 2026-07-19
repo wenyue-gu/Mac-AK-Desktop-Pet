@@ -99,6 +99,7 @@ let animationState;
 let moveDuration = 4000;
 let walkingTimer = null;
 let preferredDirection = null;
+let currentBehavior = "Relax";
 
 function stopWalking() {
 
@@ -106,6 +107,34 @@ function stopWalking() {
         cancelAnimationFrame(walkingTimer);
         walkingTimer = null;
     }
+}
+
+const dockArea = {
+    minX: 200,
+    maxX: 1150,
+    minY: 700,
+    maxY: 750
+};
+
+function isOnDock() {
+    return window.electronAPI.getWindowPosition()
+        .then(pos => {
+
+            const x = pos[0];
+            const y = pos[1];
+
+            const result =
+                x >= dockArea.minX &&
+                x <= dockArea.maxX &&
+                y >= dockArea.minY &&
+                y <= dockArea.maxY;
+
+            // window.electronAPI.log(
+            //     `Dock? ${result} x=${x} y=${y}`
+            // );
+
+            return result;
+        });
 }
 
 function loadEverything() {
@@ -164,7 +193,7 @@ function loadEverything() {
     petHitbox.onclick = () => {
         isWalking = false;
         stopWalking();
-
+        currentBehavior = "Interact";
         animationState.setAnimation(
             0,
             "Interact",
@@ -176,6 +205,7 @@ function loadEverything() {
             true,
             0
         );
+        currentBehavior = "Relax";
     };
 
     function walkPet(
@@ -183,6 +213,7 @@ function loadEverything() {
         multiplier = 1
     ) {
         isWalking = true;
+        currentBehavior = "Move";
 
         if (walkingTimer) {
             cancelAnimationFrame(walkingTimer);
@@ -233,7 +264,7 @@ function loadEverything() {
                     if (progress >= 1) {
                         isWalking = false;
                         walkingTimer = null;
-
+                        currentBehavior = "Relax";
                         animationState.setAnimation(
                             0,
                             "Relax",
@@ -294,18 +325,28 @@ function loadEverything() {
 
 
     function startRandomBehavior() {
-        const behaviors = [
+        const baseBehaviors = [
+            {
+                name: "Special",
+                chance: 0.15
+            },
+            {
+                name: "Move",
+                chance: 0.85
+            }
+        ];
+
+        const dockBehaviors = [
             {
                 name: "Special",
                 chance: 0.15
             },
             {
                 name: "Sit",
-                chance: 0.1,
+                chance: 0.10
             },
             {
                 name: "Move",
-                // chance:1
                 chance: 0.75
             }
         ];
@@ -320,11 +361,19 @@ function loadEverything() {
             );
         }
 
-        function chooseBehavior() {
+        async function chooseBehavior() {
+            const onDock = await isOnDock();
+            const behaviors = onDock
+                ? dockBehaviors
+                : baseBehaviors;
             const roll = Math.random();
+
             let total = 0;
+
             for (const behavior of behaviors) {
+
                 total += behavior.chance;
+
                 if (roll <= total) {
                     playBehavior(
                         behavior.name
@@ -335,6 +384,7 @@ function loadEverything() {
         }
 
         function playBehavior(name) {
+            currentBehavior = name;
             if (name !== "Move") {
                 stopWalking();
             }
@@ -348,27 +398,36 @@ function loadEverything() {
             }
             let track;
 
-            track =
-                animationState.setAnimation(
-                    0,
-                    name,
-                    name === "Move"
-                );
+            track = animationState.setAnimation(
+                0,
+                name,
+                name === "Move" || name === "Sit"
+            );
 
-                if (name !== "Move") {
-
-                const currentBehavior = name;
-
+            if (name === "Sit") {
+                const thisBehavior = name;
+                const sitDuration =
+                    5000 + Math.random() * 10000;
+                setTimeout(() => {
+                    if (currentBehavior !== thisBehavior) {
+                        return;
+                    }
+                    currentBehavior = "Relax";
+                    animationState.setAnimation(
+                        0,
+                        "Relax",
+                        true
+                    );
+                }, sitDuration);
+            }
+            else if (name !== "Move") {
+                const thisBehavior = name;
                 track.listener = {
                     complete: () => {
-
-                        if (
-                            animationState.getCurrent(0)?.animation?.name
-                            !== currentBehavior
-                        ) {
+                        if (currentBehavior !== thisBehavior) {
                             return;
                         }
-
+                        currentBehavior = "Relax";
                         animationState.setAnimation(
                             0,
                             "Relax",
@@ -418,7 +477,9 @@ petHitbox.addEventListener(
 
                 startWindowX = pos[0];
                 startWindowY = pos[1];
-
+                // window.electronAPI.log(
+                //     `Window position: ${pos[0]}, ${pos[1]}`
+                // );
                 dragging = true;
             });
     }

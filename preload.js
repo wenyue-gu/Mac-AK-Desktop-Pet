@@ -56,7 +56,13 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.send(
                 "update-pet-bounds",
                 bounds
-            )
+        ),
+        log: (...args) => {
+            ipcRenderer.send(
+                "log",
+                args
+            );
+        },
 
         }
 );
