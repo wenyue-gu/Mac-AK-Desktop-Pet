@@ -46,11 +46,20 @@ const assetManager =
 
 // files
 
-const skelFile =
-    "character/build_char_4133_logos_ambienceSynesthesia_6.skel";
-
-const atlasFile =
-    "character/build_char_4133_logos_ambienceSynesthesia_6.atlas";
+const characterFiles = [
+    {
+        skel:
+            "character/build_char_4133_logos_ambienceSynesthesia_6.skel",
+        atlas:
+            "character/build_char_4133_logos_ambienceSynesthesia_6.atlas"
+    },
+    {
+        skel:
+            "character/char_4133_logos_ambienceSynesthesia_6.skel",
+        atlas:
+            "character/char_4133_logos_ambienceSynesthesia_6.atlas"
+    }
+];
 
 // loading
 
@@ -64,24 +73,38 @@ function checkReady() {
     }
 }
 
-assetManager.loadBinary(
-    skelFile,
-    () => {
-        skelReady = true;
-        checkReady();
+let loadedAssets = 0;
+const totalAssets = characterFiles.length * 2;
+
+function assetLoaded() {
+    loadedAssets++;
+
+    window.electronAPI.log(
+        "assets loaded = " + loadedAssets
+    );
+
+    if (loadedAssets === totalAssets) {
+        loadEverything();
     }
-);
+}
 
 
-assetManager.loadTextureAtlas(
-    atlasFile,
-    () => {
-        atlasReady = true;
-        checkReady();
-    }
-);
+for (const character of characterFiles) {
+
+    assetManager.loadBinary(
+        character.skel,
+        assetLoaded
+    );
+
+    assetManager.loadTextureAtlas(
+        character.atlas,
+        assetLoaded
+    );
+}
+
 let characters = [];
 let activeCharacter;
+let characterIndex = 0;
 
 let walkingTimer = null;
 let preferredDirection = null;
@@ -211,8 +234,7 @@ function walkPet(
                     isWalking = false;
                     walkingTimer = null;
                     currentBehavior = "Relax";
-                    activeCharacter.animationState.setAnimation(
-                        0,
+                    playAnimation(
                         "Relax",
                         true
                     );
@@ -276,31 +298,16 @@ function walkPet(
         });
 }
 
-function loadEverything() {
-
-    const atlas =
-        assetManager.get(atlasFile);
-    const atlasLoader =
-        new spine.AtlasAttachmentLoader(atlas);
-    const binary =
-        assetManager.get(skelFile);
-    const skeletonBinary =
-        new spine.SkeletonBinary(atlasLoader);
-    const skeletonData =
-        skeletonBinary.readSkeletonData(binary);
-    console.log(
-        "Animations:",
-        skeletonData.animations.map(
-            a => a.name
-        )
-    );
+function createCharacter(skeletonData) {
 
     const moveAnimation =
         skeletonData.findAnimation("Move");
 
-    const moveDuration = moveAnimation
-    ? moveAnimation.duration * 1000
-    : 4000;
+    const moveDuration =
+        moveAnimation
+        ? moveAnimation.duration * 1000
+        : 4000;
+
 
     const skeleton =
         new spine.Skeleton(
@@ -309,6 +316,7 @@ function loadEverything() {
 
     skeleton.setToSetupPose();
 
+
     const stateData =
         new spine.AnimationStateData(
             skeletonData
@@ -316,46 +324,170 @@ function loadEverything() {
 
     stateData.defaultMix = 0;
 
+
     const animationState =
         new spine.AnimationState(
             stateData
         );
 
-    const character = {
+
+    return {
         skeleton,
         animationState,
-        moveDuration
+        moveDuration,
+        type: null,
+        idleAnimation: null,
+        animations: []
+    };
+}
+
+function loadCharacterData(files) {
+
+    const atlas =
+        assetManager.get(files.atlas);
+
+    const atlasLoader =
+        new spine.AtlasAttachmentLoader(atlas);
+
+    const binary =
+        assetManager.get(files.skel);
+
+    const skeletonBinary =
+        new spine.SkeletonBinary(atlasLoader);
+
+    return skeletonBinary.readSkeletonData(binary);
+}
+
+function playAnimation(name, loop = true) {
+
+    if (!activeCharacter.animations.includes(name)) {
+        window.electronAPI.log(
+            activeCharacter.type +
+            " does not have " +
+            name
+        );
+        return;
+    }
+
+    activeCharacter.animationState.setAnimation(
+        0,
+        name,
+        loop
+    );
+}
+
+function loadEverything() {
+
+    const files = characterFiles[0];
+
+    const atlas =
+        assetManager.get(files.atlas);
+
+    const atlasLoader =
+        new spine.AtlasAttachmentLoader(atlas);
+
+    const binary =
+        assetManager.get(files.skel);
+
+    const skeletonBinary =
+        new spine.SkeletonBinary(atlasLoader);
+
+    const skeletonData =
+        skeletonBinary.readSkeletonData(binary);
+    const firstCharacterData = skeletonData;
+
+    console.log(
+        "Animations:",
+        skeletonData.animations.map(
+            a => a.name
+        )
+    );
+
+    const character1 =
+        createCharacter(
+            firstCharacterData
+        );
+    character1.type = "base";
+    character1.idleAnimation = "Relax";
+    character1.animations =
+        firstCharacterData.animations.map(a => a.name);
+
+    characters.push(character1);
+
+    const secondData =
+        loadCharacterData(
+            characterFiles[1]
+        );
+
+    const character2 =
+        createCharacter(
+            secondData
+        );
+
+    character2.type = "normal";
+    character2.idleAnimation = "Idle";
+    character2.animations =
+        secondData.animations.map(a => a.name);
+
+    characters.push(character2);
+
+    activeCharacter = character1;
+
+    window.switchCharacter = function() {
+
+        characterIndex =
+            characterIndex === 0 ? 1 : 0;
+
+        activeCharacter =
+            characters[characterIndex];
+
+        window.electronAPI.log(
+            "switching to " + activeCharacter.type
+        );
+
+        playAnimation(
+            activeCharacter.idleAnimation,
+            true
+        );
     };
 
-    characters.push(character);
-    activeCharacter = character;
+    window.addEventListener(
+        "keydown",
+        (e) => {
+            window.electronAPI.log(
+                "key pressed = " + e.key
+            );
+
+            if (e.key.toLowerCase() === "c") {
+                window.switchCharacter();
+            }
+        }
+    );
 
     window.playAnimation = function(name) {
-        activeCharacter.animationState.setAnimation(
-            0,
+        playAnimation(
             name,
             true
         );
     };
 
     // click interaction
-    petHitbox.onclick = () => {
-        isWalking = false;
-        stopWalking();
-        currentBehavior = "Interact";
-        activeCharacter.animationState.setAnimation(
-            0,
-            "Interact",
-            false
-        );
-        activeCharacter.animationState.addAnimation(
-            0,
-            "Relax",
-            true,
-            0
-        );
-        currentBehavior = "Relax";
-    };
+    // petHitbox.onclick = () => {
+    //     isWalking = false;
+    //     stopWalking();
+    //     currentBehavior = "Interact";
+    //     playAnimation(
+    //         "Interact",
+    //         false
+    //     );
+    //     activeCharacter.animationState.addAnimation(
+    //         0,
+    //         "Relax",
+    //         true,
+    //         0
+    //     );
+    //     currentBehavior = "Relax";
+    // };
 
 
     function startRandomBehavior() {
@@ -387,8 +519,8 @@ function loadEverything() {
 
         function scheduleNext() {
             const delay =
-                // 5000;
-                15000 + Math.random() * 25000;
+                5000;
+                // 15000 + Math.random() * 25000;
             setTimeout(
                 chooseBehavior,
                 delay
@@ -435,8 +567,7 @@ function loadEverything() {
             }
             let track;
 
-            track = activeCharacter.animationState.setAnimation(
-                0,
+            track = playAnimation(
                 name,
                 name === "Move" || name === "Sit"
             );
@@ -450,8 +581,7 @@ function loadEverything() {
                         return;
                     }
                     currentBehavior = "Relax";
-                    activeCharacter.animationState.setAnimation(
-                        0,
+                    playAnimation(
                         "Relax",
                         true
                     );
@@ -465,8 +595,7 @@ function loadEverything() {
                             return;
                         }
                         currentBehavior = "Relax";
-                        activeCharacter.animationState.setAnimation(
-                            0,
+                        playAnimation(
                             "Relax",
                             true
                         );
@@ -478,14 +607,14 @@ function loadEverything() {
         scheduleNext();
     }
 
-    activeCharacter.animationState.setAnimation(
-        0,
-        "Relax",
+    playAnimation(
+        activeCharacter.idleAnimation,
         true
     );
 
-    startRandomBehavior();
+    // startRandomBehavior();
     render();
+
 }
 
 // dragging
