@@ -1,17 +1,12 @@
 import spine from "./spine/spine-webgl.js";
 
-console.log("Spine loaded:", spine);
-console.log("app loaded");
-
-
 const canvas = document.getElementById("canvas");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-
-let lastBehavior = null;
-let freezeRender = false;
+const petHitbox = document.getElementById("petHitbox");
+let isWalking = false;
 
 const gl = canvas.getContext("webgl", {
     alpha: true
@@ -101,53 +96,9 @@ assetManager.loadTextureAtlas(
 let skeleton;
 let animationState;
 
-let renderOffsetX = 0;
-let renderOffsetY = 0;
-
-let specialExpanded = false;
-
 let moveDuration = 4000;
 let walkingTimer = null;
-let currentWalkDirection = null;
 let preferredDirection = null;
-
-let normalWindowPos = null;
-
-function resizePetWindow(size) {
-
-    if (size === "special") {
-
-        window.electronAPI.resizeWindow(
-            300,
-            300
-        );
-        window.electronAPI.getWindowPosition()
-        .then(pos => {
-            window.electronAPI.moveWindow(
-                pos[0] - 30,
-                pos[1] - 80
-            );
-        });
-    }
-
-    if (size === "normal") {
-        if(lastBehavior === "Special"){
-            window.electronAPI.getWindowPosition()
-                    .then(pos => {
-                        window.electronAPI.moveWindow(
-                            pos[0] + 30,
-                            pos[1] + 80
-                        );
-                    });
-        }
-        window.electronAPI.resizeWindow(
-            200,
-            220
-        );
-
-    }
-
-}
 
 function stopWalking() {
 
@@ -190,14 +141,12 @@ function loadEverything() {
             skeletonData
         );
     skeleton.setToSetupPose();
-    skeleton.x = 250;
-    skeleton.y = 200;
 
     const stateData =
         new spine.AnimationStateData(
             skeletonData
         );
-
+    stateData.defaultMix = 0;
     animationState =
         new spine.AnimationState(
             stateData
@@ -212,18 +161,13 @@ function loadEverything() {
     };
 
     // click interaction
-    canvas.onclick = () => {
-
+    petHitbox.onclick = () => {
+        isWalking = false;
         stopWalking();
-        resizePetWindow("normal");
-
-        renderOffsetX = 0;
-        renderOffsetY = 0;
 
         animationState.setAnimation(
             0,
             "Interact",
-            // "Sit",
             false
         );
         animationState.addAnimation(
@@ -232,14 +176,13 @@ function loadEverything() {
             true,
             0
         );
-
-        lastBehavior = "SomethingElse";
     };
 
     function walkPet(
         direction,
         multiplier = 1
     ) {
+        isWalking = true;
 
         if (walkingTimer) {
             cancelAnimationFrame(walkingTimer);
@@ -261,8 +204,6 @@ function loadEverything() {
             skeleton.scaleX = 1;
         }
 
-        currentWalkDirection = direction;
-
         window.electronAPI
             .getWindowPosition()
             .then(pos => {
@@ -280,14 +221,17 @@ function loadEverything() {
                 let startTime = Date.now();
 
                 function step() {
-
+                    if (!isWalking) {
+                            walkingTimer = null;
+                            return;
+                        }
                     const elapsed = Date.now() - startTime;
 
                     const progress =
                         elapsed / duration;
 
                     if (progress >= 1) {
-
+                        isWalking = false;
                         walkingTimer = null;
 
                         animationState.setAnimation(
@@ -317,12 +261,6 @@ function loadEverything() {
                     }
 
                     if (hitEdge) {
-
-                        console.log(
-                            "Edge detected, turning:",
-                            preferredDirection
-                        );
-
                         window.electronAPI.moveWindow(
                             Math.round(currentX),
                             Math.round(startY)
@@ -342,7 +280,6 @@ function loadEverything() {
 
                         return;
                     }
-
                     window.electronAPI.moveWindow(
                         Math.round(currentX),
                         Math.round(startY)
@@ -361,29 +298,22 @@ function loadEverything() {
             {
                 name: "Special",
                 chance: 0.15
-                // chance:1
             },
-            // {
-            //     name: "Sit",
-            //     chance: 0.3
-            // },
-            // {
-            //     name: "Sleep",
-            //     chance: 0.25
-            // },
+            {
+                name: "Sit",
+                chance: 0.1,
+            },
             {
                 name: "Move",
                 // chance:1
-                // chance: 0.6
-                chance: 0.85
+                chance: 0.75
             }
         ];
 
         function scheduleNext() {
             const delay =
-                15000
-                 +
-                Math.random() * 25000;
+                5000;
+                // 15000 + Math.random() * 25000;
             setTimeout(
                 chooseBehavior,
                 delay
@@ -409,70 +339,43 @@ function loadEverything() {
                 stopWalking();
             }
             if (name === "Move") {
-                renderOffsetX = 0;
-                renderOffsetY = 0;
-                walkPet(
-                    Math.random() < 0.5 ? "left" : "right",
-                    Math.floor(Math.random() * 4) + 1
-                );
-            }
-
-            if (name === "Special") {
-                if(lastBehavior !== "Special") {
-                    renderOffsetX = 60;
-                    renderOffsetY = -180;
-                    resizePetWindow("special");
-                }
-                lastBehavior = "Special";
-            }
-            else {
-
-                renderOffsetX = 0;
-                renderOffsetY = 0;
-
-                resizePetWindow("normal");
-                lastBehavior = "SomethingElse";
-
+                setTimeout(() => {
+                    walkPet(
+                        Math.random() < 0.5 ? "left" : "right",
+                        Math.floor(Math.random() * 4) + 1
+                    );
+                }, 100);
             }
             let track;
-            if (name === "Special" && lastBehavior !== "Special") {
-                setTimeout(() => {
-                    animationState.setAnimation(
-                        0,
-                        "Special",
-                        false
-                    );
-                }, 150);
-                scheduleNext();
-                return;
-            }
-            else {
-                track =
-                    animationState.setAnimation(
-                        0,
-                        name,
-                        name === "Move"
-                    );
-            }
 
-            if (name !== "Move") {
-                    track.listener = {
-                        complete: () => {
+            track =
+                animationState.setAnimation(
+                    0,
+                    name,
+                    name === "Move"
+                );
 
-                            renderOffsetX = 0;
-                            renderOffsetY = 0;
+                if (name !== "Move") {
 
-                            resizePetWindow("normal");
+                const currentBehavior = name;
 
-                            animationState.setAnimation(
-                                0,
-                                "Relax",
-                                true
-                            );
-                            lastBehavior = "SomethingElse";
+                track.listener = {
+                    complete: () => {
+
+                        if (
+                            animationState.getCurrent(0)?.animation?.name
+                            !== currentBehavior
+                        ) {
+                            return;
                         }
-                    }
 
+                        animationState.setAnimation(
+                            0,
+                            "Relax",
+                            true
+                        );
+                    }
+                }
             }
             scheduleNext();
         }
@@ -486,7 +389,6 @@ function loadEverything() {
     );
 
     startRandomBehavior();
-    resizePetWindow("normal");
     render();
 }
 
@@ -498,12 +400,14 @@ let startMouseY = 0;
 let startWindowX = 0;
 let startWindowY = 0;
 
-canvas.addEventListener(
+petHitbox.addEventListener(
     "mousedown",
     (e) => {
+
+        window.electronAPI.setIgnoreMouse(false);
+
         stopWalking();
         preferredDirection = null;
-        dragging = true;
 
         startMouseX = e.screenX;
         startMouseY = e.screenY;
@@ -515,6 +419,7 @@ canvas.addEventListener(
                 startWindowX = pos[0];
                 startWindowY = pos[1];
 
+                dragging = true;
             });
     }
 );
@@ -547,12 +452,13 @@ window.addEventListener(
 let lastTime =
     Date.now() / 1000;
 
-function render() {
+const offset = new spine.Vector2();
+const size = new spine.Vector2();
 
+let renderStarted = false;
+
+function render() {
     requestAnimationFrame(render);
-    if (freezeRender) {
-        return;
-    }
     if (!skeleton)
         return;
 
@@ -566,20 +472,27 @@ function render() {
         skeleton
     );
 
-    skeleton.x = 250 + renderOffsetX;
-    skeleton.y = 200 + renderOffsetY;
-
+    skeleton.x = 420;
+    skeleton.y = 180;
     skeleton.updateWorldTransform();
 
-    if (animationState.getCurrent(0)?.animation?.name === "Special") {
-        console.log(
-            "Animation:",
-            animationState.getCurrent(0)?.animation?.name,
-            "position:",
-            skeleton.x,
-            skeleton.y
-        );
-    }
+    skeleton.getBounds(offset, size);
+
+    petHitbox.style.width = (size.x / zoom) + "px";
+    petHitbox.style.height = (size.y / zoom) + "px";
+
+    petHitbox.style.left =
+    (offset.x / zoom) + "px";
+
+petHitbox.style.top =
+    ((canvas.height * zoom - offset.y - size.y) / zoom) + "px";
+
+    window.electronAPI.updatePetBounds({
+        left: offset.x / zoom,
+        top: canvas.height - (offset.y + size.y) / zoom,
+        width: size.x / zoom,
+        height: size.y / zoom
+    });
 
     // gl.clearColor(
     //     0.2,
@@ -616,3 +529,15 @@ function render() {
     shader.unbind();
 
 }
+
+
+petHitbox.addEventListener("mouseenter", () => {
+    window.electronAPI.setIgnoreMouse(false);
+});
+
+
+petHitbox.addEventListener("mouseleave", () => {
+    if (!dragging) {
+        window.electronAPI.setIgnoreMouse(true);
+    }
+});

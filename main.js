@@ -1,12 +1,15 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu } = require("electron");
 
 let win;
+let mouseWatcher;
+let mouseOverPet = false;
+let petBounds = null;
 
 function createWindow() {
 
     win = new BrowserWindow({
-        width:300,
-        height:300,
+        width:400,
+        height:400,
 
         transparent:true,
         frame:false,
@@ -31,8 +34,48 @@ function createWindow() {
             visibleOnFullScreen:true
         }
     );
+    // win.setIgnoreMouseEvents(true, {
+    //    forward: true
+    // });
+    win.setIgnoreMouseEvents(false);
     win.loadFile("index.html");
     // win.webContents.openDevTools();
+}
+
+function startMouseWatcher() {
+
+    mouseWatcher = setInterval(() => {
+
+        if (!win) return;
+
+        const cursor = screen.getCursorScreenPoint();
+        const pos = win.getPosition();
+
+        const localX = cursor.x - pos[0];
+        const localY = cursor.y - pos[1];
+
+        if (petBounds) {
+
+            const inside =
+                localX >= petBounds.left &&
+                localX <= petBounds.left + petBounds.width &&
+                localY >= petBounds.top &&
+                localY <= petBounds.top + petBounds.height;
+
+            if (inside !== mouseOverPet) {
+
+                mouseOverPet = inside;
+                win.setIgnoreMouseEvents(
+                    !mouseOverPet,
+                    {
+                        forward: true
+                    }
+                );
+            }
+        }
+
+    }, 200);
+
 }
 
 ipcMain.on(
@@ -83,9 +126,29 @@ ipcMain.on(
     }
 );
 
-app.whenReady().then(
-    createWindow
+// ipcMain.on("set-ignore-mouse", (event, ignore) => {
+//     if (win) {
+//         win.setIgnoreMouseEvents(ignore, {
+//             forward: true
+//         });
+//     }
+// });
+
+ipcMain.on("log", (event, msg) => {
+    console.log(msg);
+});
+
+ipcMain.on(
+    "update-pet-bounds",
+    (event, bounds) => {
+        petBounds = bounds;
+    }
 );
+
+app.whenReady().then(() => {
+    createWindow();
+    startMouseWatcher();
+});
 
 app.on(
     "window-all-closed",

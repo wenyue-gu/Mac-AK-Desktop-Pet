@@ -15,10 +15,14 @@
 
         #canvas {
             display: block;
-            width: 300px;
-            height: 300px;
+            width: 100%;
+            height: 100%;
         }
-
+        #petHitbox {
+            position: absolute;
+            z-index: 999;
+            /* background: rgba(255,0,0,0.3); */
+        }
         /* #animationSelect {
             position: absolute;
             top: 5px;
@@ -31,7 +35,7 @@
 <body>
 
 <!-- <select id="animationSelect"></select> -->
-
+<div id="petHitbox"></div>
 <canvas id="canvas" width="300" height="300"></canvas>
 
 <script type="module" src="./app.js"></script>

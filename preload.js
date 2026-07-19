@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld(
 
         },
 
+        setIgnoreMouse: (ignore) =>
+            ipcRenderer.send(
+                "set-ignore-mouse",
+                ignore
+            ),
+
 
         getWindowPosition: () => {
 
@@ -45,7 +51,12 @@ contextBridge.exposeInMainWorld(
                 height
             );
 
-        }
+        },
+        updatePetBounds: (bounds) =>
+            ipcRenderer.send(
+                "update-pet-bounds",
+                bounds
+            )
 
-    }
+        }
 );
