@@ -28,18 +28,24 @@ const context =
     new spine.webgl.ManagedWebGLRenderingContext(
         canvas,
         {
-            alpha: true
+            alpha: true,
+            premultipliedAlpha: false,
+            antialias: true
         }
     );
 
 const shader =
-    spine.webgl.Shader.newTwoColoredTextured(context);
+    spine.webgl.Shader.newTwoColoredTextured(
+        context,
+        false
+    );
 
 const batcher =
     new spine.webgl.PolygonBatcher(context);
 
 const skeletonRenderer =
     new spine.webgl.SkeletonRenderer(context);
+skeletonRenderer.premultipliedAlpha = true;
 
 const mvp =
     new spine.webgl.Matrix4();
@@ -92,7 +98,7 @@ assetManager.loadTextureAtlas(
         checkReady();
     }
 );
-
+let characters = [];
 let activeCharacter;
 
 let walkingTimer = null;
@@ -337,11 +343,14 @@ function loadEverything() {
             stateData
         );
 
-    activeCharacter = {
+    const character = {
         skeleton,
         animationState,
         moveDuration
     };
+
+    characters.push(character);
+    activeCharacter = character;
 
     window.playAnimation = function(name) {
         activeCharacter.animationState.setAnimation(
@@ -604,9 +613,9 @@ function render() {
     });
 
     // gl.clearColor(
-    //     0.2,
-    //     0.2,
-    //     0.2,
+    //     1,
+    //     1,
+    //     1,
     //     1
     // );
     gl.clearColor(
