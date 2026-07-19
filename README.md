@@ -33,7 +33,7 @@ Unused animations:
 
 Next steps:
 
-1. Fix and add sit (currently disabled because window is clipeed)
+1. Make sit pose only happen in a specific area (limit x value to be around/on dock only)
 2. Add regular/attack models on the same outfit (but need different skel, atlas, and sprite sheet)
 3. Add reg model animations as random options too, some good ones are S1 begin-idle (idle), S2 begin-loop-end (random action), S2-down begin-loop-end (random action), S3 begin-idle-end (random action?). Maybe attack too? idk.
 4. Add other outfit and add switch outfit option in the menu bar
