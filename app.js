@@ -93,8 +93,7 @@ assetManager.loadTextureAtlas(
     }
 );
 
-let characters = [];
-let character;
+let activeCharacter;
 
 let walkingTimer = null;
 let preferredDirection = null;
@@ -185,16 +184,16 @@ function walkPet(
         distancePerWalkCycle * multiplier;
 
     const duration =
-        character.moveDuration * multiplier;
+        activeCharacter.moveDuration * multiplier;
     // window.electronAPI.log(
     //     `WALK multiplier=${multiplier} distance=${distance} duration=${duration}`
     // );
 
     if (direction === "left") {
-        character.skeleton.scaleX = -1;
+        activeCharacter.skeleton.scaleX = -1;
     }
     else {
-        character.skeleton.scaleX = 1;
+        activeCharacter.skeleton.scaleX = 1;
     }
 
     window.electronAPI
@@ -227,7 +226,7 @@ function walkPet(
                     isWalking = false;
                     walkingTimer = null;
                     currentBehavior = "Relax";
-                    character.animationState.setAnimation(
+                    activeCharacter.animationState.setAnimation(
                         0,
                         "Relax",
                         true
@@ -264,7 +263,7 @@ function walkPet(
 
                     direction = preferredDirection;
 
-                    character.skeleton.scaleX =
+                    activeCharacter.skeleton.scaleX =
                         direction === "left" ? -1 : 1;
 
                     startX = currentX;
@@ -338,14 +337,14 @@ function loadEverything() {
             stateData
         );
 
-    character = {
+    activeCharacter = {
         skeleton,
         animationState,
         moveDuration
     };
 
     window.playAnimation = function(name) {
-        character.animationState.setAnimation(
+        activeCharacter.animationState.setAnimation(
             0,
             name,
             true
@@ -357,12 +356,12 @@ function loadEverything() {
         isWalking = false;
         stopWalking();
         currentBehavior = "Interact";
-        character.animationState.setAnimation(
+        activeCharacter.animationState.setAnimation(
             0,
             "Interact",
             false
         );
-        character.animationState.addAnimation(
+        activeCharacter.animationState.addAnimation(
             0,
             "Relax",
             true,
@@ -449,7 +448,7 @@ function loadEverything() {
             }
             let track;
 
-            track = character.animationState.setAnimation(
+            track = activeCharacter.animationState.setAnimation(
                 0,
                 name,
                 name === "Move" || name === "Sit"
@@ -464,7 +463,7 @@ function loadEverything() {
                         return;
                     }
                     currentBehavior = "Relax";
-                    character.animationState.setAnimation(
+                    activeCharacter.animationState.setAnimation(
                         0,
                         "Relax",
                         true
@@ -479,7 +478,7 @@ function loadEverything() {
                             return;
                         }
                         currentBehavior = "Relax";
-                        character.animationState.setAnimation(
+                        activeCharacter.animationState.setAnimation(
                             0,
                             "Relax",
                             true
@@ -492,7 +491,7 @@ function loadEverything() {
         scheduleNext();
     }
 
-    character.animationState.setAnimation(
+    activeCharacter.animationState.setAnimation(
         0,
         "Relax",
         true
@@ -566,7 +565,7 @@ const size = new spine.Vector2();
 
 function render() {
     requestAnimationFrame(render);
-    if (!character)
+    if (!activeCharacter)
         return;
 
     const now =
@@ -574,16 +573,16 @@ function render() {
     const delta =
         now - lastTime;
     lastTime = now;
-    character.animationState.update(delta);
-    character.animationState.apply(
-        character.skeleton
+    activeCharacter.animationState.update(delta);
+    activeCharacter.animationState.apply(
+        activeCharacter.skeleton
     );
 
-    character.skeleton.x = 420;
-    character.skeleton.y = 180;
-    character.skeleton.updateWorldTransform();
+    activeCharacter.skeleton.x = 420;
+    activeCharacter.skeleton.y = 180;
+    activeCharacter.skeleton.updateWorldTransform();
 
-    character.skeleton.getBounds(offset, size);
+    activeCharacter.skeleton.getBounds(offset, size);
 
     petHitbox.style.width = (size.x / zoom) + "px";
     petHitbox.style.height = (size.y / zoom) + "px";
@@ -633,7 +632,7 @@ function render() {
     batcher.begin(shader);
     skeletonRenderer.draw(
         batcher,
-        character.skeleton
+        activeCharacter.skeleton
     );
     batcher.end();
     shader.unbind();
