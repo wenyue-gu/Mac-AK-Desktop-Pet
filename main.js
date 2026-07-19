@@ -8,10 +8,11 @@ let petBounds = null;
 function createWindow() {
 
     win = new BrowserWindow({
-        width:1000,
-        height:1000,
+        width:400,
+        height:400,
 
         transparent:true,
+        hasShadow:false,
         frame:false,
 
         alwaysOnTop:true,
@@ -34,9 +35,6 @@ function createWindow() {
             visibleOnFullScreen:true
         }
     );
-    // win.setIgnoreMouseEvents(true, {
-    //    forward: true
-    // });
     win.setIgnoreMouseEvents(false);
     win.loadFile("index.html");
     // win.webContents.openDevTools();
@@ -46,7 +44,7 @@ function startMouseWatcher() {
 
     mouseWatcher = setInterval(() => {
 
-        if (!win) return;
+        if (!win || win.isDestroyed()) return;
 
         const cursor = screen.getCursorScreenPoint();
         const pos = win.getPosition();
@@ -190,4 +188,11 @@ app.whenReady().then(() => {
 
     tray.setContextMenu(contextMenu);
 
+});
+
+app.on("before-quit", () => {
+    if (mouseWatcher) {
+        clearInterval(mouseWatcher);
+        mouseWatcher = null;
+    }
 });

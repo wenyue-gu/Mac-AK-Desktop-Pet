@@ -8,27 +8,13 @@ canvas.height = window.innerHeight;
 const petHitbox = document.getElementById("petHitbox");
 let isWalking = false;
 
-// const gl = canvas.getContext("webgl", {
-//     alpha: true
-// });
-
-// if (!gl) {
-//     alert("WebGL not supported");
-// }
-// gl.enable(gl.BLEND);
-
-// gl.blendFunc(
-//     gl.SRC_ALPHA,
-//     gl.ONE_MINUS_SRC_ALPHA
-// );
-
 // Spine setup
 
 const context =
     new spine.webgl.ManagedWebGLRenderingContext(
         canvas,
         {
-            alpha: true
+            alpha:true,
         }
     );
 
@@ -46,7 +32,7 @@ skeletonRenderer.premultipliedAlpha = true;
 const mvp =
     new spine.webgl.Matrix4();
 
-const zoom = 1;//2.2;
+const zoom = 2.2;
 
 mvp.ortho2d(
     0,
@@ -187,9 +173,6 @@ function walkPet(
 
     const duration =
         activeCharacter.moveDuration * multiplier;
-    // window.electronAPI.log(
-    //     `WALK multiplier=${multiplier} distance=${distance} duration=${duration}`
-    // );
 
     if (direction === "left") {
         activeCharacter.skeleton.scaleX = -1;
@@ -297,13 +280,6 @@ function loadEverything() {
 
     const atlas =
         assetManager.get(atlasFile);
-        window.electronAPI.log(
-    "atlas regions=" + atlas.regions.length
-);
-
-window.electronAPI.log(
-    "first region=" + atlas.regions[0].name
-);
     const atlasLoader =
         new spine.AtlasAttachmentLoader(atlas);
     const binary =
@@ -312,9 +288,6 @@ window.electronAPI.log(
         new spine.SkeletonBinary(atlasLoader);
     const skeletonData =
         skeletonBinary.readSkeletonData(binary);
-window.electronAPI.log(
-    "TEST loaded skeleton data"
-);
     console.log(
         "Animations:",
         skeletonData.animations.map(
@@ -367,7 +340,6 @@ window.electronAPI.log(
 
     // click interaction
     petHitbox.onclick = () => {
-        window.electronAPI.log("CLICK HITBOX");
         isWalking = false;
         stopWalking();
         currentBehavior = "Interact";
@@ -415,8 +387,8 @@ window.electronAPI.log(
 
         function scheduleNext() {
             const delay =
-                5000;
-                // 15000 + Math.random() * 25000;
+                // 5000;
+                15000 + Math.random() * 25000;
             setTimeout(
                 chooseBehavior,
                 delay
@@ -618,28 +590,13 @@ function render() {
         height: size.y / zoom
     });
 
-    // gl.clearColor(
-    //     1,
-    //     1,
-    //     1,
-    //     1
-    // );
-    // gl.clearColor(
-    //     0,
-    //     0,
-    //     0,
-    //     0
-    // );
 
-    // gl.clear(
-    //     gl.COLOR_BUFFER_BIT
-    // );
     context.gl.clearColor(
-    0,
-    0,
-    0,
-    0
-);
+        0,
+        0,
+        0,
+        0
+    );
 
     context.gl.clear(
         context.gl.COLOR_BUFFER_BIT
@@ -668,7 +625,6 @@ function render() {
 
 
 petHitbox.addEventListener("mouseenter", () => {
-    window.electronAPI.log("ENTER HITBOX");
     window.electronAPI.setIgnoreMouse(false);
 });
 
