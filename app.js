@@ -93,10 +93,9 @@ assetManager.loadTextureAtlas(
     }
 );
 
-let skeleton;
-let animationState;
+let characters = [];
+let character;
 
-let moveDuration = 4000;
 let walkingTimer = null;
 let preferredDirection = null;
 let currentBehavior = "Relax";
@@ -120,6 +119,24 @@ function safeNumber(value) {
 function stopWalking() {
     cancelAnimationFrame(walkingTimer);
     walkingTimer = null;
+}
+
+function chooseWalkDirection() {
+    if (!preferredDirection) {
+        return Math.random() < 0.5
+            ? "left"
+            : "right";
+    }
+
+    const roll = Math.random();
+
+    if (roll < 0.7) {
+        return preferredDirection;
+    }
+
+    return preferredDirection === "left"
+        ? "right"
+        : "left";
 }
 
 const dockArea = {
@@ -150,6 +167,131 @@ function isOnDock() {
         });
 }
 
+function walkPet(
+    direction,
+    multiplier = 1
+) {
+    isWalking = true;
+    currentBehavior = "Move";
+
+    if (walkingTimer) {
+        cancelAnimationFrame(walkingTimer);
+        walkingTimer = null;
+    }
+
+    const distancePerWalkCycle = 60;
+
+    const distance =
+        distancePerWalkCycle * multiplier;
+
+    const duration =
+        character.moveDuration * multiplier;
+    // window.electronAPI.log(
+    //     `WALK multiplier=${multiplier} distance=${distance} duration=${duration}`
+    // );
+
+    if (direction === "left") {
+        character.skeleton.scaleX = -1;
+    }
+    else {
+        character.skeleton.scaleX = 1;
+    }
+
+    window.electronAPI
+        .getWindowPosition()
+        .then(pos => {
+
+            let startX = pos[0];
+            const startY = pos[1];
+
+            const screenWidth = window.screen.width;
+
+            const rightLimit =
+                screenWidth -
+                petBounds.width -
+                petBounds.left;
+
+            let startTime = Date.now();
+
+            function step() {
+                if (!isWalking) {
+                        walkingTimer = null;
+                        return;
+                    }
+                const elapsed = Date.now() - startTime;
+
+                const progress =
+                    elapsed / duration;
+
+                if (progress >= 1) {
+                    isWalking = false;
+                    walkingTimer = null;
+                    currentBehavior = "Relax";
+                    character.animationState.setAnimation(
+                        0,
+                        "Relax",
+                        true
+                    );
+                    return;
+                }
+
+                let currentX =
+                    direction === "left"
+                        ? startX - distance * progress
+                        : startX + distance * progress;
+
+                let hitEdge = false;
+
+                if (currentX + petBounds.left <= 5) {
+                    currentX = 5-petBounds.left;
+                    preferredDirection = "right";
+                    hitEdge = true;
+                }
+                if (currentX >= rightLimit-5) {
+                    currentX = rightLimit-5;
+                    preferredDirection = "left";
+                    hitEdge = true;
+                }
+
+                if (hitEdge) {
+
+                    const safeX = safeNumber(currentX);
+                    const safeY = safeNumber(startY);
+                    window.electronAPI.moveWindow(
+                        safeX,
+                        safeY
+                    );
+
+                    direction = preferredDirection;
+
+                    character.skeleton.scaleX =
+                        direction === "left" ? -1 : 1;
+
+                    startX = currentX;
+
+                    startTime = Date.now();
+
+                    walkingTimer =
+                        requestAnimationFrame(step);
+
+                    return;
+                }
+
+                const safeX = safeNumber(currentX);
+                const safeY = safeNumber(startY);
+
+                window.electronAPI.moveWindow(
+                    safeX,
+                    safeY
+                );
+
+                walkingTimer =
+                    requestAnimationFrame(step);
+            }
+            step();
+        });
+}
+
 function loadEverything() {
 
     const atlas =
@@ -173,29 +315,37 @@ function loadEverything() {
     const moveAnimation =
         skeletonData.findAnimation("Move");
 
-    if (moveAnimation) {
-        moveDuration =
-            moveAnimation.duration * 1000;
-    }
+    const moveDuration = moveAnimation
+    ? moveAnimation.duration * 1000
+    : 4000;
 
-    skeleton =
+    const skeleton =
         new spine.Skeleton(
             skeletonData
         );
+
     skeleton.setToSetupPose();
 
     const stateData =
         new spine.AnimationStateData(
             skeletonData
         );
+
     stateData.defaultMix = 0;
-    animationState =
+
+    const animationState =
         new spine.AnimationState(
             stateData
         );
 
+    character = {
+        skeleton,
+        animationState,
+        moveDuration
+    };
+
     window.playAnimation = function(name) {
-        animationState.setAnimation(
+        character.animationState.setAnimation(
             0,
             name,
             true
@@ -207,12 +357,12 @@ function loadEverything() {
         isWalking = false;
         stopWalking();
         currentBehavior = "Interact";
-        animationState.setAnimation(
+        character.animationState.setAnimation(
             0,
             "Interact",
             false
         );
-        animationState.addAnimation(
+        character.animationState.addAnimation(
             0,
             "Relax",
             true,
@@ -220,128 +370,6 @@ function loadEverything() {
         );
         currentBehavior = "Relax";
     };
-
-    function walkPet(
-        direction,
-        multiplier = 1
-    ) {
-        isWalking = true;
-        currentBehavior = "Move";
-
-        if (walkingTimer) {
-            cancelAnimationFrame(walkingTimer);
-            walkingTimer = null;
-        }
-
-        const baseDistance = 60;
-
-        const distance =
-            baseDistance * multiplier;
-
-        const duration =
-            moveDuration * multiplier;
-
-        if (direction === "left") {
-            skeleton.scaleX = -1;
-        }
-        else {
-            skeleton.scaleX = 1;
-        }
-
-        window.electronAPI
-            .getWindowPosition()
-            .then(pos => {
-
-                let startX = pos[0];
-                const startY = pos[1];
-
-                const screenWidth = window.screen.width;
-
-                const rightLimit =
-                    screenWidth -
-                    petBounds.width -
-                    petBounds.left;
-
-                let startTime = Date.now();
-
-                function step() {
-                    if (!isWalking) {
-                            walkingTimer = null;
-                            return;
-                        }
-                    const elapsed = Date.now() - startTime;
-
-                    const progress =
-                        elapsed / duration;
-
-                    if (progress >= 1) {
-                        isWalking = false;
-                        walkingTimer = null;
-                        currentBehavior = "Relax";
-                        animationState.setAnimation(
-                            0,
-                            "Relax",
-                            true
-                        );
-                        return;
-                    }
-
-                    let currentX =
-                        direction === "left"
-                            ? startX - distance * progress
-                            : startX + distance * progress;
-
-                    let hitEdge = false;
-
-                    if (currentX + petBounds.left <= 5) {
-                        currentX = 5-petBounds.left;
-                        preferredDirection = "right";
-                        hitEdge = true;
-                    }
-                    if (currentX >= rightLimit-5) {
-                        currentX = rightLimit-5;
-                        preferredDirection = "left";
-                        hitEdge = true;
-                    }
-
-                    if (hitEdge) {
-
-                        const safeX = safeNumber(currentX);
-                        const safeY = safeNumber(startY);
-                        window.electronAPI.moveWindow(
-                            safeX,
-                            safeY
-                        );
-
-                        direction = preferredDirection;
-
-                        skeleton.scaleX =
-                            direction === "left" ? -1 : 1;
-
-                        startX = currentX;
-
-                        startTime = Date.now();
-
-                        walkingTimer =
-                            requestAnimationFrame(step);
-
-                        return;
-                    }
-
-                    const safeX = safeNumber(currentX);
-                    const safeY = safeNumber(startY);
-
-                    window.electronAPI.moveWindow(
-                        safeX,
-                        safeY
-                    );
-
-                    walkingTimer =
-                        requestAnimationFrame(step);
-                }
-                step();
-            });
-    }
 
 
     function startRandomBehavior() {
@@ -373,8 +401,8 @@ function loadEverything() {
 
         function scheduleNext() {
             const delay =
-                // 5000;
-                15000 + Math.random() * 25000;
+                5000;
+                // 15000 + Math.random() * 25000;
             setTimeout(
                 chooseBehavior,
                 delay
@@ -410,15 +438,18 @@ function loadEverything() {
             }
             if (name === "Move") {
                 setTimeout(() => {
+                    const direction = chooseWalkDirection();
                     walkPet(
-                        Math.random() < 0.5 ? "left" : "right",
+                        direction,
                         Math.floor(Math.random() * 4) + 1
                     );
+
+                    preferredDirection = null;
                 }, 100);
             }
             let track;
 
-            track = animationState.setAnimation(
+            track = character.animationState.setAnimation(
                 0,
                 name,
                 name === "Move" || name === "Sit"
@@ -433,7 +464,7 @@ function loadEverything() {
                         return;
                     }
                     currentBehavior = "Relax";
-                    animationState.setAnimation(
+                    character.animationState.setAnimation(
                         0,
                         "Relax",
                         true
@@ -448,7 +479,7 @@ function loadEverything() {
                             return;
                         }
                         currentBehavior = "Relax";
-                        animationState.setAnimation(
+                        character.animationState.setAnimation(
                             0,
                             "Relax",
                             true
@@ -461,7 +492,7 @@ function loadEverything() {
         scheduleNext();
     }
 
-    animationState.setAnimation(
+    character.animationState.setAnimation(
         0,
         "Relax",
         true
@@ -535,7 +566,7 @@ const size = new spine.Vector2();
 
 function render() {
     requestAnimationFrame(render);
-    if (!skeleton)
+    if (!character)
         return;
 
     const now =
@@ -543,16 +574,16 @@ function render() {
     const delta =
         now - lastTime;
     lastTime = now;
-    animationState.update(delta);
-    animationState.apply(
-        skeleton
+    character.animationState.update(delta);
+    character.animationState.apply(
+        character.skeleton
     );
 
-    skeleton.x = 420;
-    skeleton.y = 180;
-    skeleton.updateWorldTransform();
+    character.skeleton.x = 420;
+    character.skeleton.y = 180;
+    character.skeleton.updateWorldTransform();
 
-    skeleton.getBounds(offset, size);
+    character.skeleton.getBounds(offset, size);
 
     petHitbox.style.width = (size.x / zoom) + "px";
     petHitbox.style.height = (size.y / zoom) + "px";
@@ -602,7 +633,7 @@ function render() {
     batcher.begin(shader);
     skeletonRenderer.draw(
         batcher,
-        skeleton
+        character.skeleton
     );
     batcher.end();
     shader.unbind();
