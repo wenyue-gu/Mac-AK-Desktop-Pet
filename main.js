@@ -78,17 +78,23 @@ function startMouseWatcher() {
 
 }
 
-ipcMain.on(
-    "move-window",
-    (event, x, y) => {
-        if (win) {
-            win.setPosition(
-                Math.round(x),
-                Math.round(y)
-            );
-        }
+ipcMain.on("move-window", (event, x, y) => {
+
+    if (
+        typeof x !== "number" ||
+        typeof y !== "number" ||
+        Number.isNaN(x) ||
+        Number.isNaN(y)
+    ) {
+        console.log("INVALID POSITION BLOCKED");
+        return;
     }
-);
+
+    win.setPosition(
+        Math.round(x),
+        Math.round(y)
+    );
+});
 
 ipcMain.handle(
     "get-window-position",

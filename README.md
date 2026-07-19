@@ -16,12 +16,13 @@ Alternatively:
 
 Current behavior:
 
-1. every 15-40 seconds, character chooses either the move behavior or the special animation (weight 85% vs 15%)
-2. If character chooses to walk, he will walk randomly between 1-4 units, randomly to the left or to the right (50%)
-3. If the character hits the edge while walking, he immediately turns around and finish the walking interval
-4. After that, the next time he chooses to walk, the direction weight will be away from the previous edge hit 70%: towards the edge 30%
-5. After that, the weight resets to 50%
-6. Click the character triggers "interact" animation
+1. Every 15-40 seconds, character chooses a behavior (currently: sit, move, special)
+2. Sit will only ever be selected if character is on dock when the decision is happening (x,y coords are hardcoded to my computer, so you might want to change it to fit your computer)
+3. If character chooses to walk, he will walk randomly between 1-4 units, randomly to the left or to the right (50%)
+4. If the character hits the edge while walking, he immediately turns around and finish the walking interval
+5. After that, the next time he chooses to walk, the direction weight will be away from the previous edge hit 70%: towards the edge 30%
+6. After that, the weight resets to 50%
+7. Click the character triggers "interact" animation
 
 
 Unused animations:
@@ -33,7 +34,6 @@ Unused animations:
 
 Next steps:
 
-1. Make sit pose only happen in a specific area (limit x value to be around/on dock only)
-2. Add regular/attack models on the same outfit (but need different skel, atlas, and sprite sheet)
-3. Add reg model animations as random options too, some good ones are S1 begin-idle (idle), S2 begin-loop-end (random action), S2-down begin-loop-end (random action), S3 begin-idle-end (random action?). Maybe attack too? idk.
-4. Add other outfit and add switch outfit option in the menu bar
+1. Add regular/attack models on the same outfit (but need different skel, atlas, and sprite sheet)
+2. Add reg model animations as random options too, some good ones are S1 begin-idle (idle), S2 begin-loop-end (random action), S2-down begin-loop-end (random action), S3 begin-idle-end (random action?). Maybe attack too? idk.
+3. Add other outfit and add switch outfit option in the menu bar

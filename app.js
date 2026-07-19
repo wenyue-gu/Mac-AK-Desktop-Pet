@@ -100,13 +100,26 @@ let moveDuration = 4000;
 let walkingTimer = null;
 let preferredDirection = null;
 let currentBehavior = "Relax";
+let petBounds = {
+    left: 0,
+    width: 0
+};
+
+function safeNumber(value) {
+    let result = Number.isFinite(value)
+        ? Math.round(value)
+        : 0;
+
+    if (Object.is(result, -0)) {
+        result = 0;
+    }
+
+    return result;
+}
 
 function stopWalking() {
-
-    if (walkingTimer) {
-        cancelAnimationFrame(walkingTimer);
-        walkingTimer = null;
-    }
+    cancelAnimationFrame(walkingTimer);
+    walkingTimer = null;
 }
 
 const dockArea = {
@@ -243,11 +256,11 @@ function loadEverything() {
                 const startY = pos[1];
 
                 const screenWidth = window.screen.width;
-                const windowWidth = window.innerWidth;
 
-                const leftLimit = 0;
                 const rightLimit =
-                    screenWidth - windowWidth;
+                    screenWidth -
+                    petBounds.width -
+                    petBounds.left;
 
                 let startTime = Date.now();
 
@@ -280,29 +293,32 @@ function loadEverything() {
 
                     let hitEdge = false;
 
-                    if (currentX <= leftLimit) {
-                        currentX = leftLimit;
+                    if (currentX + petBounds.left <= 5) {
+                        currentX = 5-petBounds.left;
                         preferredDirection = "right";
                         hitEdge = true;
                     }
-                    if (currentX >= rightLimit) {
-                        currentX = rightLimit;
+                    if (currentX >= rightLimit-5) {
+                        currentX = rightLimit-5;
                         preferredDirection = "left";
                         hitEdge = true;
                     }
 
                     if (hitEdge) {
-                        window.electronAPI.moveWindow(
-                            Math.round(currentX),
-                            Math.round(startY)
-                        );
 
-                        startX = currentX;
+                        const safeX = safeNumber(currentX);
+                        const safeY = safeNumber(startY);
+                        window.electronAPI.moveWindow(
+                            safeX,
+                            safeY
+                        );
 
                         direction = preferredDirection;
 
                         skeleton.scaleX =
                             direction === "left" ? -1 : 1;
+
+                        startX = currentX;
 
                         startTime = Date.now();
 
@@ -311,9 +327,13 @@ function loadEverything() {
 
                         return;
                     }
+
+                    const safeX = safeNumber(currentX);
+                    const safeY = safeNumber(startY);
+
                     window.electronAPI.moveWindow(
-                        Math.round(currentX),
-                        Math.round(startY)
+                        safeX,
+                        safeY
                     );
 
                     walkingTimer =
@@ -477,9 +497,7 @@ petHitbox.addEventListener(
 
                 startWindowX = pos[0];
                 startWindowY = pos[1];
-                // window.electronAPI.log(
-                //     `Window position: ${pos[0]}, ${pos[1]}`
-                // );
+
                 dragging = true;
             });
     }
@@ -490,7 +508,6 @@ window.addEventListener(
     (e) => {
         if (!dragging)
             return;
-
         const dx =
             e.screenX - startMouseX;
         const dy =
@@ -515,8 +532,6 @@ let lastTime =
 
 const offset = new spine.Vector2();
 const size = new spine.Vector2();
-
-let renderStarted = false;
 
 function render() {
     requestAnimationFrame(render);
@@ -545,13 +560,16 @@ function render() {
     petHitbox.style.left =
     (offset.x / zoom) + "px";
 
-petHitbox.style.top =
-    ((canvas.height * zoom - offset.y - size.y) / zoom) + "px";
+    petHitbox.style.top =
+        ((canvas.height * zoom - offset.y - size.y) / zoom) + "px";
+
+    petBounds.left = offset.x / zoom;
+    petBounds.width = size.x / zoom;
 
     window.electronAPI.updatePetBounds({
-        left: offset.x / zoom,
+        left: petBounds.left,
         top: canvas.height - (offset.y + size.y) / zoom,
-        width: size.x / zoom,
+        width: petBounds.width,
         height: size.y / zoom
     });
 
