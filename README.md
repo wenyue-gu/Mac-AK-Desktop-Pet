@@ -24,7 +24,8 @@ Alternatively:
     * Click during S1 plays the S1 attack
     * Click during S2 swaps S2 mode from up to down and vice versa
     * Click during S3 plays the S3 attack
-* In Base mode, pet will choose between behaviors: Sit, Special, and Move
+* Base mode
+    * Pet will choose between behaviors: Sit, Special, and Move
     * Sit only happens on the dock area, which is currently hardcoded to my computer. You may want to edit it to fit your computer
     * Click during any of base mode animation (including move) will play the Interact animation
 * When the quit button is presssed on the menu bar icon, pet plays the Die animation before app quits
