@@ -19,7 +19,13 @@
     "appId": "com.lucy.desktoppet",
     "productName": "DesktopPet",
     "mac": {
-      "target": "dmg"
+      "target": {
+        "target": "dmg",
+        "arch": [
+          "universal"
+        ]
+      },
+      "icon": "dock.png"
     }
   },
   "dependencies": {

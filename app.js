@@ -896,7 +896,7 @@ function startRandomBehavior() {
     const baseBehaviors = [
         {
             name: "Special",
-            chance: 1
+            chance: 2
         },
         {
             name: "Move",
@@ -925,7 +925,7 @@ function startRandomBehavior() {
         },
         {
             name: "Special",
-            chance: 1
+            chance: 2
         },
         {
             name: "Move",
