@@ -78,11 +78,6 @@ const totalAssets = characterFiles.length * 2;
 
 function assetLoaded() {
     loadedAssets++;
-
-    window.electronAPI.log(
-        "assets loaded = " + loadedAssets
-    );
-
     if (loadedAssets === totalAssets) {
         loadEverything();
     }
@@ -102,13 +97,65 @@ for (const character of characterFiles) {
     );
 }
 
-let characters = [];
+let characters = {};
 let activeCharacter;
-let characterIndex = 0;
+let currentMode = "normal";
+
+const behaviorSources = {
+    Move: "shared",
+
+    Sit: "base",
+    Special: "base",
+
+    Skill1: "normal",
+    Skill2: "normal",
+    Skill3: "normal"
+};
+
+const interactAnimations = {
+    Skill1: "Skill_1_Attack",
+    Skill3: "Skill_3_Attack"
+};
+
+const behaviorAnimations = {
+    Move: [
+        "Move"
+    ],
+
+    Sit: [
+        "Sit"
+    ],
+
+    Special: [
+        "Special"
+    ],
+
+    Skill1: [
+        "Skill_1_Begin",
+        "Skill_1_Idle"
+    ],
+
+    Skill2: [
+        "Skill_2_Begin",
+        "Skill_2_Loop",
+        "Skill_2_End",
+        "Skill_Down_2_Begin",
+        "Skill_Down_2_Loop",
+        "Skill_Down_2_End"
+    ],
+
+    Skill3: [
+        "Skill_3_Begin",
+        "Skill_3_Idle",
+        "Skill_3_End"
+    ]
+};
 
 let walkingTimer = null;
 let preferredDirection = null;
+let currentDirection = "right";
 let currentBehavior = "Relax";
+let skill2Down = false;
 let petBounds = {
     left: 0,
     width: 0
@@ -147,6 +194,56 @@ function chooseWalkDirection() {
     return preferredDirection === "left"
         ? "right"
         : "left";
+}
+
+function playIdle() {
+
+    activeCharacter.animationState.clearTrack(0);
+
+    playAnimation(
+        activeCharacter.defaultIdle,
+        true
+    );
+}
+
+function playStartAnimation() {
+
+    const track = playAnimation(
+        "Start",
+        false
+    );
+
+    if (!track) {
+        playIdle();
+        return;
+    }
+
+    track.listener = {
+        complete: () => {
+            playIdle();
+            startRandomBehavior();
+        }
+    };
+}
+
+function setMode(mode) {
+
+    if (!characters[mode]) {
+        window.electronAPI.log(
+            "Unknown mode: " + mode
+        );
+        return;
+    }
+
+    currentMode = mode;
+    activeCharacter = characters[mode];
+
+    activeCharacter.skeleton.scaleX =
+        currentDirection === "left"
+            ? -1
+            : 1;
+
+    playIdle();
 }
 
 const dockArea = {
@@ -197,6 +294,8 @@ function walkPet(
     const duration =
         activeCharacter.moveDuration * multiplier;
 
+    currentDirection = direction;
+
     if (direction === "left") {
         activeCharacter.skeleton.scaleX = -1;
     }
@@ -230,14 +329,27 @@ function walkPet(
                 const progress =
                     elapsed / duration;
 
-                if (progress >= 1) {
+               if (progress >= 1) {
+                    window.electronAPI.log("Move finished");
+
                     isWalking = false;
                     walkingTimer = null;
+
+                    const goNormal = Math.random() < 0.5;
+
+                    if (goNormal) {
+                        setMode("normal");
+                    }
+                    else {
+                        setMode("base");
+                    }
+
                     currentBehavior = "Relax";
-                    playAnimation(
-                        "Relax",
-                        true
-                    );
+
+                    playIdle();
+
+                    startRandomBehavior();
+
                     return;
                 }
 
@@ -336,7 +448,7 @@ function createCharacter(skeletonData) {
         animationState,
         moveDuration,
         type: null,
-        idleAnimation: null,
+        defaultIdle: null,
         animations: []
     };
 }
@@ -366,14 +478,663 @@ function playAnimation(name, loop = true) {
             " does not have " +
             name
         );
-        return;
+        return null;
     }
 
-    activeCharacter.animationState.setAnimation(
+    return activeCharacter.animationState.setAnimation(
         0,
         name,
         loop
     );
+}
+
+function playAnimationBackward(name) {
+
+    const animation =
+        activeCharacter.animationState
+            .data
+            .skeletonData
+            .findAnimation(name);
+
+    if (!animation) {
+        return null;
+    }
+
+    const track =
+        activeCharacter.animationState.setAnimation(
+            0,
+            name,
+            false
+        );
+
+    track.trackTime = animation.duration;
+    track.timeScale = -1;
+
+    return track;
+}
+
+function playBehavior(name) {
+
+    const owner =
+        behaviorSources[name];
+
+    if (
+        owner &&
+        owner !== "shared" &&
+        currentMode !== owner
+    ) {
+        setMode(owner);
+    }
+
+    switch(name) {
+
+        case "Move":
+            playMoveBehavior();
+            break;
+
+        case "Sit":
+            playSitBehavior();
+            break;
+
+        case "Special":
+            playSpecialBehavior();
+            break;
+
+        case "Skill1":
+            playSkill1Behavior();
+            break;
+
+        case "Skill2":
+            playSkill2Behavior();
+            break;
+
+        case "Skill3":
+            playSkill3Behavior();
+            break;
+
+    }
+}
+
+function playMoveBehavior() {
+
+    currentBehavior = "Move";
+
+    // Move animation belongs to base skeleton
+    if (!activeCharacter.animations.includes("Move")) {
+        setMode("base");
+    }
+
+    playAnimation(
+        "Move",
+        true
+    );
+
+    setTimeout(() => {
+
+        const direction =
+            chooseWalkDirection();
+
+        walkPet(
+            direction,
+            Math.floor(Math.random() * 4) + 1
+        );
+
+        preferredDirection = null;
+
+    }, 100);
+}
+
+let sitTimer = null;
+
+function playSitBehavior() {
+    currentBehavior = "Sit";
+
+    stopWalking();
+
+    playAnimation(
+        "Sit",
+        true
+    );
+
+    window.electronAPI.log("Sit animation started");
+
+    const sitDuration =
+        5000 + Math.random() * 5000;
+
+    setTimeout(() => {
+        if (currentBehavior !== "Sit") {
+            return;
+        }
+
+        currentBehavior = "Relax";
+        playIdle();
+
+        startRandomBehavior();
+
+    }, sitDuration);
+}
+
+function playSpecialBehavior() {
+    currentBehavior = "Special";
+
+    stopWalking();
+
+    const track = playAnimation(
+        "Special",
+        false
+    );
+
+    if (!track) {
+        return;
+    }
+
+    track.listener = {
+        complete: () => {
+            if (currentBehavior !== "Special") {
+                return;
+            }
+            currentBehavior = "Relax";
+            playIdle();
+            startRandomBehavior();
+        }
+    };
+}
+
+function playPhasedSkill(
+    behaviorName,
+    beginAnimation,
+    idleAnimation,
+    endAnimation
+) {
+
+    currentBehavior = behaviorName;
+
+    stopWalking();
+
+    window.electronAPI.log(
+        behaviorName + " Begin"
+    );
+
+    const beginTrack = playAnimation(
+        beginAnimation,
+        false
+    );
+
+    if (!beginTrack) {
+        return;
+    }
+
+    beginTrack.listener = {
+        complete: () => {
+
+            window.electronAPI.log(
+                behaviorName + " Idle"
+            );
+
+            playAnimation(
+                idleAnimation,
+                true
+            );
+
+            const idleDuration =
+                5000 + Math.random() * 5000;
+
+
+            setTimeout(() => {
+
+                if (currentBehavior !== behaviorName) {
+                    return;
+                }
+
+                window.electronAPI.log(
+                    behaviorName + " End"
+                );
+
+
+                const endTrack = playAnimation(
+                    endAnimation,
+                    false
+                );
+
+
+                if (!endTrack) {
+                    return;
+                }
+
+
+                endTrack.listener = {
+                    complete: () => {
+
+                        currentBehavior = "Relax";
+
+                        playIdle();
+
+                        startRandomBehavior();
+
+                    }
+                };
+
+            }, idleDuration);
+        }
+    };
+}
+
+function playSkill1Behavior() {
+
+    currentBehavior = "Skill1";
+
+    stopWalking();
+
+    const beginTrack =
+        playAnimation(
+            "Skill_1_Begin",
+            false
+        );
+
+    if (!beginTrack) {
+        return;
+    }
+
+
+    beginTrack.listener = {
+        complete: () => {
+
+            playAnimation(
+                "Skill_1_Idle",
+                true
+            );
+
+
+            const idleDuration =
+                5000 + Math.random() * 5000;
+
+
+            setTimeout(() => {
+
+                if (currentBehavior !== "Skill1") {
+                    return;
+                }
+
+
+                window.electronAPI.log(
+                    "Skill1 Reverse"
+                );
+
+
+                const reverseTrack =
+                    playAnimationBackward(
+                        "Skill_1_Begin"
+                    );
+
+
+                if (!reverseTrack) {
+                    return;
+                }
+
+            }, idleDuration);
+        }
+    };
+}
+
+
+function playSkill2Behavior() {
+
+    currentBehavior = "Skill2";
+    skill2Down = false;
+
+    stopWalking();
+
+    const beginTrack = playAnimation(
+        "Skill_2_Begin",
+        false
+    );
+
+    if (!beginTrack) {
+        return;
+    }
+
+    beginTrack.listener = {
+        complete: () => {
+
+            playAnimation(
+                "Skill_2_Loop",
+                true
+            );
+
+            const idleDuration =
+                5000 + Math.random() * 5000;
+
+            setTimeout(() => {
+
+                if (currentBehavior !== "Skill2") {
+                    return;
+                }
+
+                endSkill2();
+
+            }, idleDuration);
+        }
+    };
+}
+
+function switchSkill2Mode() {
+
+    if (currentBehavior !== "Skill2") {
+        return;
+    }
+
+    skill2Down = !skill2Down;
+
+    if (skill2Down) {
+
+        playAnimation(
+            "Skill_Down_2_Loop",
+            true
+        );
+
+    }
+    else {
+
+        playAnimation(
+            "Skill_2_Loop",
+            true
+        );
+
+    }
+}
+
+
+function endSkill2() {
+
+    const endAnimation = skill2Down
+        ? "Skill_Down_2_End"
+        : "Skill_2_End";
+
+
+    const endTrack = playAnimation(
+        endAnimation,
+        false
+    );
+
+
+    if (!endTrack) {
+        return;
+    }
+
+
+    endTrack.listener = {
+        complete: () => {
+
+            currentBehavior = "Relax";
+
+            playIdle();
+
+            startRandomBehavior();
+
+        }
+    };
+}
+
+function playSkill3Behavior() {
+
+    playPhasedSkill(
+        "Skill3",
+        "Skill_3_Begin",
+        "Skill_3_Idle",
+        "Skill_3_End"
+    );
+
+}
+
+function startRandomBehavior() {
+    const baseBehaviors = [
+        {
+            name: "Special",
+            chance: 1
+        },
+        {
+            name: "Move",
+            chance: 1
+        },
+
+        {
+            name: "Skill3",
+            chance: 1
+        },
+        {
+            name: "Skill1",
+            chance: 15
+        },
+        {
+            name: "Skill2",
+            chance: 1
+        }
+    ];
+
+
+    const dockBehaviors = [
+        {
+            name: "Sit",
+            chance: 2
+        },
+        {
+            name: "Special",
+            chance: 1
+        },
+        {
+            name: "Move",
+            chance: 5
+        },
+
+        {
+            name: "Skill3",
+            chance: 1
+        },
+        {
+            name: "Skill1",
+            chance: 1
+        },
+        {
+            name: "Skill2",
+            chance: 1
+        }
+    ];
+
+    function scheduleNext() {
+        const delay =
+            5000;
+            // 15000 + Math.random() * 25000;
+        setTimeout(
+            chooseBehavior,
+            delay
+        );
+    }
+
+    async function chooseBehavior() {
+        const onDock = await isOnDock();
+        let behaviors = onDock
+            ? dockBehaviors
+            : baseBehaviors;
+
+        behaviors = behaviors.filter(
+            behavior => {
+
+                const owner =
+                    behaviorSources[behavior.name];
+
+                if (!owner) {
+                    return false;
+                }
+
+                if (
+                    owner !== "shared" &&
+                    owner !== currentMode
+                ) {
+                    return false;
+                }
+
+                const requiredAnimations =
+                    behaviorAnimations[behavior.name];
+
+                if (!requiredAnimations) {
+                    return false;
+                }
+
+                if (owner === "shared") {
+                    return (
+                        characters.base.animations.includes(requiredAnimations[0]) ||
+                        characters.normal.animations.includes(requiredAnimations[0])
+                    );
+                }
+
+                return requiredAnimations.every(
+                    animation =>
+                        characters[owner]
+                            .animations
+                            .includes(animation)
+                );
+            }
+        );
+        window.electronAPI.log(
+            "Available behaviors: " +
+            behaviors.map(b => b.name).join(", ")
+        );
+        if (behaviors.length === 0) {
+            window.electronAPI.log(
+                activeCharacter.type + " has no available behaviors"
+            );
+
+            scheduleNext();
+            return;
+        }
+
+        const totalChance =
+            behaviors.reduce(
+                (sum, behavior) =>
+                    sum + behavior.chance,
+                0
+            );
+
+        const roll =
+            Math.random() * totalChance;
+
+        let total = 0;
+
+        for (const behavior of behaviors) {
+
+            total += behavior.chance;
+
+            if (roll <= total) {
+
+                window.electronAPI.log(
+                    "Chosen behavior: " + behavior.name
+                );
+
+                playBehavior(
+                    behavior.name
+                );
+
+                return;
+            }
+        }
+    }
+    scheduleNext();
+}
+
+function playInteract() {
+
+    stopWalking();
+    if (
+        currentBehavior === "Skill2" &&
+        currentMode === "normal"
+    ) {
+        switchSkill2Mode();
+        return;
+    }
+
+    if (
+        currentMode === "normal" &&
+        currentBehavior === "Relax"
+    ) {
+
+        const attackAnimation =
+            Math.random() < 0.5
+                ? "Attack_1"
+                : "Attack_2";
+
+        const track = playAnimation(
+            attackAnimation,
+            false
+        );
+
+        if (!track) {
+            return;
+        }
+
+        track.listener = {
+            complete: () => {
+                playIdle();
+            }
+        };
+
+        return;
+    }
+    if (
+        currentMode === "normal" &&
+        interactAnimations[currentBehavior]
+    ) {
+
+        const attackAnimation =
+            interactAnimations[currentBehavior];
+
+        const track = playAnimation(
+            attackAnimation,
+            false
+        );
+
+        if (!track) {
+            return;
+        }
+
+        track.listener = {
+            complete: () => {
+                let idleAni = activeCharacter.defaultIdle;
+                if(currentBehavior === "Skill1"){
+                    idleAni = "Skill_1_Idle";
+                }
+                else if(currentBehavior === "Skill3"){
+                    idleAni = "Skill_3_Idle";
+                }
+                playAnimation(
+                    idleAni,
+                    true
+                );
+            }
+        };
+
+        return;
+    }
+
+    currentBehavior = "Interact";
+
+    setMode("base");
+
+    const track = playAnimation(
+        "Interact",
+        false
+    );
+
+    if (!track) {
+        return;
+    }
+
+    track.listener = {
+        complete: () => {
+            currentBehavior = "Relax";
+            playIdle();
+            startRandomBehavior();
+        }
+    };
 }
 
 function loadEverything() {
@@ -408,11 +1169,9 @@ function loadEverything() {
             firstCharacterData
         );
     character1.type = "base";
-    character1.idleAnimation = "Relax";
+    character1.defaultIdle = "Relax";
     character1.animations =
         firstCharacterData.animations.map(a => a.name);
-
-    characters.push(character1);
 
     const secondData =
         loadCharacterData(
@@ -425,29 +1184,39 @@ function loadEverything() {
         );
 
     character2.type = "normal";
-    character2.idleAnimation = "Idle";
+    character2.defaultIdle = "Idle";
     character2.animations =
         secondData.animations.map(a => a.name);
 
-    characters.push(character2);
+    window.electronAPI.log(
+        "NORMAL SKELETON ANIMATIONS:"
+    );
 
-    activeCharacter = character1;
+    secondData.animations.forEach(
+        animation => {
+            window.electronAPI.log(
+                animation.name
+            );
+        }
+    );
+
+    characters = {
+        base: character1,
+        normal: character2
+    };
+    setMode("normal");
 
     window.switchCharacter = function() {
 
-        characterIndex =
-            characterIndex === 0 ? 1 : 0;
-
-        activeCharacter =
-            characters[characterIndex];
+        if (currentMode === "base") {
+            setMode("normal");
+        }
+        else {
+            setMode("base");
+        }
 
         window.electronAPI.log(
-            "switching to " + activeCharacter.type
-        );
-
-        playAnimation(
-            activeCharacter.idleAnimation,
-            true
+            "switched to " + currentMode
         );
     };
 
@@ -471,148 +1240,11 @@ function loadEverything() {
         );
     };
 
-    // click interaction
-    // petHitbox.onclick = () => {
-    //     isWalking = false;
-    //     stopWalking();
-    //     currentBehavior = "Interact";
-    //     playAnimation(
-    //         "Interact",
-    //         false
-    //     );
-    //     activeCharacter.animationState.addAnimation(
-    //         0,
-    //         "Relax",
-    //         true,
-    //         0
-    //     );
-    //     currentBehavior = "Relax";
-    // };
+    petHitbox.onclick = () => {
+        playInteract();
+    };
 
-
-    function startRandomBehavior() {
-        const baseBehaviors = [
-            {
-                name: "Special",
-                chance: 0.15
-            },
-            {
-                name: "Move",
-                chance: 0.85
-            }
-        ];
-
-        const dockBehaviors = [
-            {
-                name: "Special",
-                chance: 0.15
-            },
-            {
-                name: "Sit",
-                chance: 0.10
-            },
-            {
-                name: "Move",
-                chance: 0.75
-            }
-        ];
-
-        function scheduleNext() {
-            const delay =
-                5000;
-                // 15000 + Math.random() * 25000;
-            setTimeout(
-                chooseBehavior,
-                delay
-            );
-        }
-
-        async function chooseBehavior() {
-            const onDock = await isOnDock();
-            const behaviors = onDock
-                ? dockBehaviors
-                : baseBehaviors;
-            const roll = Math.random();
-
-            let total = 0;
-
-            for (const behavior of behaviors) {
-
-                total += behavior.chance;
-
-                if (roll <= total) {
-                    playBehavior(
-                        behavior.name
-                    );
-                    return;
-                }
-            }
-        }
-
-        function playBehavior(name) {
-            currentBehavior = name;
-            if (name !== "Move") {
-                stopWalking();
-            }
-            if (name === "Move") {
-                setTimeout(() => {
-                    const direction = chooseWalkDirection();
-                    walkPet(
-                        direction,
-                        Math.floor(Math.random() * 4) + 1
-                    );
-
-                    preferredDirection = null;
-                }, 100);
-            }
-            let track;
-
-            track = playAnimation(
-                name,
-                name === "Move" || name === "Sit"
-            );
-
-            if (name === "Sit") {
-                const thisBehavior = name;
-                const sitDuration =
-                    5000 + Math.random() * 10000;
-                setTimeout(() => {
-                    if (currentBehavior !== thisBehavior) {
-                        return;
-                    }
-                    currentBehavior = "Relax";
-                    playAnimation(
-                        "Relax",
-                        true
-                    );
-                }, sitDuration);
-            }
-            else if (name !== "Move") {
-                const thisBehavior = name;
-                track.listener = {
-                    complete: () => {
-                        if (currentBehavior !== thisBehavior) {
-                            return;
-                        }
-                        currentBehavior = "Relax";
-                        playAnimation(
-                            "Relax",
-                            true
-                        );
-                    }
-                }
-            }
-            scheduleNext();
-        }
-        scheduleNext();
-    }
-
-    playAnimation(
-        activeCharacter.idleAnimation,
-        true
-    );
-
-    // startRandomBehavior();
+    playStartAnimation();
     render();
 
 }
@@ -690,6 +1322,57 @@ function render() {
         now - lastTime;
     lastTime = now;
     activeCharacter.animationState.update(delta);
+    const track = activeCharacter.animationState.tracks[0];
+
+    if (
+        track &&
+        track.timeScale < 0 &&
+        track.trackTime <= 0
+    ) {
+
+        window.electronAPI.log(
+            "Reverse reached start frame"
+        );
+
+        // Clamp it
+        track.trackTime = 0;
+
+        // Let this frame stay visible
+        track.timeScale = 0;
+
+        setTimeout(() => {
+            window.electronAPI.log(
+                "Reverse ended, switching idle"
+            );
+            activeCharacter.animationState.clearTrack(0);
+
+            playIdle();
+
+            currentBehavior = "Relax";
+
+            startRandomBehavior();
+
+        }, 50);
+    }
+    if (!activeCharacter.animationState.tracks[0]) {
+        window.electronAPI.log(
+            "NO TRACK - SETUP POSE"
+        );
+    }
+    else {
+        const track = activeCharacter.animationState.tracks[0];
+
+if (
+    track &&
+    track.timeScale < 0 &&
+    Math.abs(track.trackTime % 0.1) < 0.01
+) {
+    window.electronAPI.log(
+        "Reverse time=" +
+        track.trackTime.toFixed(2)
+    );
+}
+    }
     activeCharacter.animationState.apply(
         activeCharacter.skeleton
     );
