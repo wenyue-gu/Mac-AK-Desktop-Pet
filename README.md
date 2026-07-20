@@ -16,24 +16,32 @@ Alternatively:
 
 Current behavior:
 
-1. Every 15-40 seconds, character chooses a behavior (currently: sit, move, special)
-2. Sit will only ever be selected if character is on dock when the decision is happening (x,y coords are hardcoded to my computer, so you might want to change it to fit your computer)
-3. If character chooses to walk, he will walk randomly between 1-4 units, randomly to the left or to the right (50%)
-4. If the character hits the edge while walking, he immediately turns around and finish the walking interval
-5. After that, the next time he chooses to walk, the direction weight will be away from the previous edge hit 70%: towards the edge 30%
-6. After that, the weight resets to 50%
-7. Click the character triggers "interact" animation
-
+* When app is launched, pet plays the Start (battle start) animation once and enters battle idle animation (Normal mode)
+* Every 15-40 seconds, pet have various chance to select a behavior. One of which (the most "special" behavior) is Move.
+    * When pet decides to move, normally, he has 50-50 chance of picking going left or going right, and walks for a random multipler between 1-4 unit duration.
+    * When pet hits edge while moving, he immediately turns back, finishes the current moving interval. Then the next time he choose to move, he will have a 70-30 preference of walking away from the previous wall vs towards the prevous wall. After that, the chance reset to 50-50.
+    * After Move plays, pet has 50-50 chance of entering Normal or Base mode (different idle animation, behavior logic, and click ineteraction)
+* Normal mode
+    * Pet will choose between behaviors: S1, S2, S3, and Move
+    * Click in normal idle mode plays the attack animation in 50-50 chance
+    * Click during S1 plays the S1 attack
+    * Click during S2 swaps S2 mode from up to down and vice versa
+    * Click during S3 plays the S3 attack
+* In Base mode, pet will choose between behaviors: Sit, Special, and Move
+    * Sit only happens on the dock area, which is currently hardcoded to my computer. You may want to edit it to fit your computer
+    * Click during any of base mode animation (including move) will play the Interact animation
+* When the quit button is presssed on the menu bar icon, pet plays the Die animation before app quits
 
 Unused animations:
 
-1. base:sleep
+1. base: Sleep
+2. base: Default
+3. normal: Default
+4. normal: Skill_Down_2_Begin (skill 2 always begin as regular pose/up)
 
 -----
 
 
 Next steps:
 
-1. Add regular/attack models on the same outfit (but need different skel, atlas, and sprite sheet)
-2. Add reg model animations as random options too, some good ones are S1 begin-idle (idle), S2 begin-loop-end (random action), S2-down begin-loop-end (random action), S3 begin-idle-end (random action?). Maybe attack too? idk.
-3. Add other outfit and add switch outfit option in the menu bar
+1. Add other outfit and add switch outfit option in the menu bar
