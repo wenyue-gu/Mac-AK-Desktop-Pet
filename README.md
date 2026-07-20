@@ -1,4 +1,4 @@
-How to use:
+## How to use:
 
 1. Have npm installed
 2. cd into this folder (desktop_pet2)
@@ -11,10 +11,7 @@ Alternatively:
 5. double click the .app file inside to run it (no terminal needed, app runs in background, quit app by clicking the icon on the top menu bar and select Quit)
 
 
------
-
-
-Current behavior:
+## Expected behavior:
 
 * When app is launched, pet plays the Start (battle start) animation once and enters battle idle animation (Normal mode)
 * Every 15-40 seconds, pet have various chance to select a behavior. One of which (the most "special" behavior) is Move.
@@ -32,16 +29,14 @@ Current behavior:
     * Click during any of base mode animation (including move) will play the Interact animation
 * When the quit button is presssed on the menu bar icon, pet plays the Die animation before app quits
 
-Unused animations:
+## Unused animations:
 
 1. base: Sleep
 2. base: Default
 3. normal: Default
 4. normal: Skill_Down_2_Begin (skill 2 always begin as regular pose/up)
 
------
 
-
-Next steps:
+## Next steps:
 
 1. Add other outfit and add switch outfit option in the menu bar
