@@ -130,17 +130,16 @@ ipcMain.on(
     }
 );
 
-// ipcMain.on("set-ignore-mouse", (event, ignore) => {
-//     if (win) {
-//         win.setIgnoreMouseEvents(ignore, {
-//             forward: true
-//         });
-//     }
-// });
-
 ipcMain.on("log", (event, msg) => {
     console.log(msg);
 });
+
+ipcMain.on(
+    "confirm-quit",
+    () => {
+        app.quit();
+    }
+);
 
 ipcMain.on(
     "update-pet-bounds",
@@ -168,6 +167,7 @@ app.on(
 const path = require("path");
 
 let tray;
+let quitting = false;
 
 app.whenReady().then(() => {
 
@@ -179,7 +179,20 @@ app.whenReady().then(() => {
         {
             label: "Quit",
             click() {
-                app.quit();
+
+                if (win && !win.isDestroyed()) {
+
+                    quitting = true;
+
+                    win.webContents.send(
+                        "quit-request"
+                    );
+
+                }
+                else {
+                    app.quit();
+                }
+
             }
         }
     ]);
@@ -189,6 +202,23 @@ app.whenReady().then(() => {
     tray.setContextMenu(contextMenu);
 
 });
+
+app.on(
+    "before-quit",
+    (event) => {
+
+        if (!quitting) {
+            event.preventDefault();
+
+            if (win && !win.isDestroyed()) {
+                win.webContents.send(
+                    "quit-request"
+                );
+            }
+        }
+
+    }
+);
 
 app.on("before-quit", () => {
     if (mouseWatcher) {

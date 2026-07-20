@@ -64,5 +64,20 @@ contextBridge.exposeInMainWorld(
             );
         },
 
+        onQuitRequest: (callback) => {
+            ipcRenderer.on(
+                "quit-request",
+                () => {
+                    callback();
+                }
+            );
+        },
+
+        confirmQuit: () => {
+            ipcRenderer.send(
+                "confirm-quit"
+            );
         }
+
+    }
 );

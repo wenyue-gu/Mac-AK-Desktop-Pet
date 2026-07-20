@@ -94,6 +94,8 @@ let currentMode = "normal";
 const behaviorSources = {
     Move: "shared",
 
+    Die: "normal",
+
     Sit: "base",
     Special: "base",
 
@@ -111,6 +113,8 @@ const behaviorAnimations = {
     Move: [
         "Move"
     ],
+
+    Die:[ "Die"],
 
     Sit: [
         "Sit"
@@ -542,6 +546,9 @@ function playBehavior(name) {
         case "Skill3":
             playSkill3Behavior();
             break;
+        case "Die":
+            playQuitAnimation();
+            break;
 
     }
 }
@@ -855,6 +862,34 @@ function playSkill3Behavior() {
         "Skill_3_End"
     );
 
+}
+
+function playQuitAnimation() {
+
+    stopWalking();
+
+    currentBehavior = "Die";
+
+    // Die animation only exists in normal skeleton
+    if (currentMode !== "normal") {
+        setMode("normal");
+    }
+
+    const track = playAnimation(
+        "Die",
+        false
+    );
+
+    if (!track) {
+        window.electronAPI.confirmQuit();
+        return;
+    }
+
+    track.listener = {
+        complete: () => {
+            window.electronAPI.confirmQuit();
+        }
+    };
 }
 
 function startRandomBehavior() {
@@ -1190,6 +1225,10 @@ function loadEverything() {
     petHitbox.onclick = () => {
         playInteract();
     };
+
+    window.electronAPI.onQuitRequest(() => {
+        playQuitAnimation();
+    });
 
     playStartAnimation();
     render();
