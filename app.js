@@ -63,16 +63,6 @@ const characterFiles = [
 
 // loading
 
-let skelReady = false;
-let atlasReady = false;
-
-
-function checkReady() {
-    if (skelReady && atlasReady) {
-        loadEverything();
-    }
-}
-
 let loadedAssets = 0;
 const totalAssets = characterFiles.length * 2;
 
@@ -206,6 +196,12 @@ function playIdle() {
     );
 }
 
+function finishBehavior(){
+    currentBehavior = "Relax";
+    playIdle();
+    startRandomBehavior();
+}
+
 function playStartAnimation() {
 
     const track = playAnimation(
@@ -220,8 +216,7 @@ function playStartAnimation() {
 
     track.listener = {
         complete: () => {
-            playIdle();
-            startRandomBehavior();
+            finishBehavior();
         }
     };
 }
@@ -344,11 +339,7 @@ function walkPet(
                         setMode("base");
                     }
 
-                    currentBehavior = "Relax";
-
-                    playIdle();
-
-                    startRandomBehavior();
+                    finishBehavior();
 
                     return;
                 }
@@ -584,8 +575,6 @@ function playMoveBehavior() {
     }, 100);
 }
 
-let sitTimer = null;
-
 function playSitBehavior() {
     currentBehavior = "Sit";
 
@@ -605,11 +594,7 @@ function playSitBehavior() {
         if (currentBehavior !== "Sit") {
             return;
         }
-
-        currentBehavior = "Relax";
-        playIdle();
-
-        startRandomBehavior();
+        finishBehavior();
 
     }, sitDuration);
 }
@@ -633,9 +618,7 @@ function playSpecialBehavior() {
             if (currentBehavior !== "Special") {
                 return;
             }
-            currentBehavior = "Relax";
-            playIdle();
-            startRandomBehavior();
+            finishBehavior();
         }
     };
 }
@@ -704,13 +687,7 @@ function playPhasedSkill(
 
                 endTrack.listener = {
                     complete: () => {
-
-                        currentBehavior = "Relax";
-
-                        playIdle();
-
-                        startRandomBehavior();
-
+                        finishBehavior();
                     }
                 };
 
@@ -864,13 +841,7 @@ function endSkill2() {
 
     endTrack.listener = {
         complete: () => {
-
-            currentBehavior = "Relax";
-
-            playIdle();
-
-            startRandomBehavior();
-
+            finishBehavior();
         }
     };
 }
@@ -894,7 +865,7 @@ function startRandomBehavior() {
         },
         {
             name: "Move",
-            chance: 1
+            chance: 5
         },
 
         {
@@ -903,7 +874,7 @@ function startRandomBehavior() {
         },
         {
             name: "Skill1",
-            chance: 15
+            chance: 1
         },
         {
             name: "Skill2",
@@ -942,8 +913,8 @@ function startRandomBehavior() {
 
     function scheduleNext() {
         const delay =
-            5000;
-            // 15000 + Math.random() * 25000;
+            // 5000;
+            15000 + Math.random() * 25000;
         setTimeout(
             chooseBehavior,
             delay
@@ -1130,9 +1101,7 @@ function playInteract() {
 
     track.listener = {
         complete: () => {
-            currentBehavior = "Relax";
-            playIdle();
-            startRandomBehavior();
+            finishBehavior();
         }
     };
 }
@@ -1156,13 +1125,6 @@ function loadEverything() {
     const skeletonData =
         skeletonBinary.readSkeletonData(binary);
     const firstCharacterData = skeletonData;
-
-    console.log(
-        "Animations:",
-        skeletonData.animations.map(
-            a => a.name
-        )
-    );
 
     const character1 =
         createCharacter(
@@ -1188,23 +1150,15 @@ function loadEverything() {
     character2.animations =
         secondData.animations.map(a => a.name);
 
-    window.electronAPI.log(
-        "NORMAL SKELETON ANIMATIONS:"
-    );
-
-    secondData.animations.forEach(
-        animation => {
-            window.electronAPI.log(
-                animation.name
-            );
-        }
-    );
-
     characters = {
         base: character1,
         normal: character2
     };
     setMode("normal");
+    window.electronAPI.moveWindow(
+        500,
+        713
+    );
 
     window.switchCharacter = function() {
 
@@ -1232,13 +1186,6 @@ function loadEverything() {
             }
         }
     );
-
-    window.playAnimation = function(name) {
-        playAnimation(
-            name,
-            true
-        );
-    };
 
     petHitbox.onclick = () => {
         playInteract();
@@ -1310,7 +1257,6 @@ let lastTime =
 
 const offset = new spine.Vector2();
 const size = new spine.Vector2();
-let debugHitboxPrinted = false;
 function render() {
     requestAnimationFrame(render);
     if (!activeCharacter)
@@ -1330,10 +1276,6 @@ function render() {
         track.trackTime <= 0
     ) {
 
-        window.electronAPI.log(
-            "Reverse reached start frame"
-        );
-
         // Clamp it
         track.trackTime = 0;
 
@@ -1341,38 +1283,11 @@ function render() {
         track.timeScale = 0;
 
         setTimeout(() => {
-            window.electronAPI.log(
-                "Reverse ended, switching idle"
-            );
             activeCharacter.animationState.clearTrack(0);
-
-            playIdle();
-
-            currentBehavior = "Relax";
-
-            startRandomBehavior();
-
+            finishBehavior();
         }, 50);
     }
-    if (!activeCharacter.animationState.tracks[0]) {
-        window.electronAPI.log(
-            "NO TRACK - SETUP POSE"
-        );
-    }
-    else {
-        const track = activeCharacter.animationState.tracks[0];
 
-if (
-    track &&
-    track.timeScale < 0 &&
-    Math.abs(track.trackTime % 0.1) < 0.01
-) {
-    window.electronAPI.log(
-        "Reverse time=" +
-        track.trackTime.toFixed(2)
-    );
-}
-    }
     activeCharacter.animationState.apply(
         activeCharacter.skeleton
     );
