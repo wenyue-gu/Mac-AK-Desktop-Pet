@@ -1023,8 +1023,8 @@ function startRandomBehavior() {
 
     function scheduleNext() {
         const delay =
-            5000;
-            // 15000 + Math.random() * 25000;
+            // 5000;
+            15000 + Math.random() * 25000;
         setTimeout(
             chooseBehavior,
             delay
