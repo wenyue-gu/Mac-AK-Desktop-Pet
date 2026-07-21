@@ -7,7 +7,7 @@
 Alternatively:
 
 3. npm run build
-4. open the dist folder that the prior cmd should've created, then the folder mac-arm64
+4. open the dist folder that the prior cmd should've created, then the folder mac-universal
 5. double click the .app file inside to run it (no terminal needed, app runs in background, quit app by clicking the icon on the top menu bar and select Quit)
 6. Default outfit is Radient Serenity, use the menu bar dropdown to switch to RI Uniform outfit.
 
