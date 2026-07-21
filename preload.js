@@ -77,7 +77,12 @@ contextBridge.exposeInMainWorld(
             ipcRenderer.send(
                 "confirm-quit"
             );
-        }
+        },
+        onSwitchOutfit: (callback) =>
+            ipcRenderer.on(
+                "switch-outfit",
+                (event, index) => callback(index)
+            ),
 
     }
 );

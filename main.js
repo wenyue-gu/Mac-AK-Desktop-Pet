@@ -176,6 +176,32 @@ app.whenReady().then(() => {
     );
 
     const contextMenu = Menu.buildFromTemplate([
+            {
+                label: "Outfit",
+                submenu: [
+                    {
+                        label: "Outfit 1",
+                        type: "radio",
+                        checked: true,
+                        click() {
+                            win.webContents.send(
+                                "switch-outfit",
+                                0
+                            );
+                        }
+                    },
+                    {
+                        label: "Outfit 2",
+                        type: "radio",
+                        click() {
+                            win.webContents.send(
+                                "switch-outfit",
+                                1
+                            );
+                        }
+                    }
+                ]
+            },
         {
             label: "Quit",
             click() {
