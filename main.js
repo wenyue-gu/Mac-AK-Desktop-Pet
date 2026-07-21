@@ -191,7 +191,7 @@ app.whenReady().then(() => {
                         }
                     },
                     {
-                        label: "Default RI Uniform",
+                        label: "RI Uniform",
                         type: "radio",
                         click() {
                             win.webContents.send(

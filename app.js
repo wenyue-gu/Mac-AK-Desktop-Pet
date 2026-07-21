@@ -996,29 +996,28 @@ function startRandomBehavior() {
             name: "Special",
             chance: 2
         },
-        // {
-        //     name: "Move",
-        //     chance: 5
-        // },
-
+        {
+            name: "Move",
+            chance: 5
+        },
         {
             name: "Skill3",
-            chance: 10
+            chance: 1
         },
         {
             name: "Skill1",
-            chance: 10
+            chance: 1
         },
         {
             name: "Skill2",
-            chance: 10
+            chance: 1
         }
     ];
 
     function scheduleNext() {
         const delay =
-            5000;
-            // 15000 + Math.random() * 25000;
+            // 5000;
+            15000 + Math.random() * 25000;
         setTimeout(
             chooseBehavior,
             delay
