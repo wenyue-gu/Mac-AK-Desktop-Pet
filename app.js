@@ -233,8 +233,12 @@ function safeNumber(value) {
 }
 
 function stopWalking() {
-    cancelAnimationFrame(walkingTimer);
+    if (walkingTimer) {
+        cancelAnimationFrame(walkingTimer);
+    }
+
     walkingTimer = null;
+    isWalking = false;
 }
 
 function chooseWalkDirection() {
@@ -265,11 +269,20 @@ function playIdle() {
     );
 }
 
-function finishBehavior(){
+function finishBehavior(source = "unknown", force = false) {
+
+
 
     if (behaviorTimer) {
         clearTimeout(behaviorTimer);
         behaviorTimer = null;
+    }
+
+    if (isInteracting && !force) {
+        window.electronAPI.log(
+            "finishBehavior ignored during interact"
+        );
+        return;
     }
 
     isInteracting = false;
@@ -351,6 +364,10 @@ function walkPet(
     direction,
     multiplier = 1
 ) {
+    if (isInteracting) {
+        return;
+    }
+
     isWalking = true;
     currentBehavior = "Move";
 
@@ -720,7 +737,7 @@ function playPhasedSkill(
     );
 
     if (!beginTrack) {
-        finishBehavior();
+        finishBehavior("playPhasedSkill begin missing");
         return;
     }
 
@@ -754,7 +771,7 @@ function playPhasedSkill(
                 );
 
                 if (!endTrack) {
-                    finishBehavior();
+                    finishBehavior("playPhasedSkill end missing");
                     return;
                 }
 
@@ -807,17 +824,16 @@ function playSkill1Behavior() {
                     return;
                 }
 
-                const endTrack = playAnimation(
-                    "Skill_1_End",
-                    false
+                const reverseTrack = playAnimationBackward(
+                    "Skill_1_Begin"
                 );
 
-                if (!endTrack) {
+                if (!reverseTrack) {
                     finishBehavior();
                     return;
                 }
 
-                endTrack.listener = {
+                reverseTrack.listener = {
                     complete: () => {
                         finishBehavior();
                     }
@@ -969,7 +985,14 @@ function playQuitAnimation() {
     };
 }
 
+let randomBehaviorTimer = null;
+
 function startRandomBehavior() {
+
+    if (randomBehaviorTimer) {
+        clearTimeout(randomBehaviorTimer);
+        randomBehaviorTimer = null;
+    }
     const baseBehaviors = [
         {
             name: "Special",
@@ -1026,13 +1049,17 @@ function startRandomBehavior() {
         const delay =
             // 5000;
             15000 + Math.random() * 25000;
-        setTimeout(
+        randomBehaviorTimer = setTimeout(
             chooseBehavior,
             delay
         );
     }
 
     async function chooseBehavior() {
+        if (isInteracting) {
+            scheduleNext();
+            return;
+        }
         const onDock = await isOnDock();
         let behaviors = onDock
             ? dockBehaviors
@@ -1259,7 +1286,7 @@ function playInteract() {
 
     currentBehavior = "Interact";
 
-    setMode("base");
+    setMode("base", false);
 
     const track = playAnimation(
         "Interact",
@@ -1267,18 +1294,24 @@ function playInteract() {
     );
 
     if (!track) {
-        finishBehavior();
+        finishBehavior("Interact missing", true);
         return;
     }
 
     track.listener = {
         complete: () => {
-            finishBehavior();
+            finishBehavior("Interact complete", true);
         }
     };
 }
 
 function restoreAnimationAfterSwitch(name, loop, time) {
+
+    const savedBehavior = currentBehavior;
+
+    window.electronAPI.log(
+        "Restoring animation after outfit switch: " + name
+    );
 
     const track = playAnimation(
         name,
@@ -1296,7 +1329,7 @@ function restoreAnimationAfterSwitch(name, loop, time) {
         track.listener = {
             complete: () => {
 
-                if (currentBehavior === "Skill1") {
+                if (savedBehavior === "Skill1") {
                     isInteracting = false;
                     playAnimation(
                         "Skill_1_Idle",
@@ -1305,7 +1338,7 @@ function restoreAnimationAfterSwitch(name, loop, time) {
                     return;
                 }
 
-                if (currentBehavior === "Skill3") {
+                if (savedBehavior === "Skill3") {
                     isInteracting = false;
                     playAnimation(
                         "Skill_3_Idle",
@@ -1342,12 +1375,15 @@ function switchOutfit(index) {
 
     const currentAnimation = getCurrentAnimation();
     const oldMode = currentMode;
+    const oldBehavior = currentBehavior;
 
     currentOutfit = index;
 
     const files = outfitFiles[currentOutfit];
 
     createCharacters(files);
+
+    currentBehavior = oldBehavior;
 
     setMode(oldMode, false);
 
@@ -1365,6 +1401,7 @@ function switchOutfit(index) {
     }
     else {
         playIdle();
+        currentBehavior = "Relax";
     }
 }
 
