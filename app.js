@@ -760,7 +760,8 @@ function playPhasedSkill(
 
                 behaviorTimer = setTimeout(() => {
 
-                    if (currentBehavior !== behaviorName) {
+                    if (behaviorId !== myBehaviorId ||
+                        currentBehavior !== behaviorName) {
                         return;
                     }
 
