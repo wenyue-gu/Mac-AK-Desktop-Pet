@@ -259,6 +259,17 @@ function chooseWalkDirection() {
         : "left";
 }
 
+function setDirection(direction) {
+    currentDirection = direction;
+
+    if (activeCharacter) {
+        activeCharacter.skeleton.scaleX =
+            direction === "left"
+                ? -1
+                : 1;
+    }
+}
+
 function playIdle() {
 
     activeCharacter.animationState.clearTrack(0);
@@ -326,10 +337,7 @@ function setMode(mode, resetIdle = true) {
     currentMode = mode;
     activeCharacter = characters[mode];
 
-    activeCharacter.skeleton.scaleX =
-        currentDirection === "left"
-            ? -1
-            : 1;
+    setDirection(currentDirection);
 
     if (resetIdle) {
         playIdle();
@@ -384,14 +392,7 @@ function walkPet(
     const duration =
         activeCharacter.moveDuration * multiplier;
 
-    currentDirection = direction;
-
-    if (direction === "left") {
-        activeCharacter.skeleton.scaleX = -1;
-    }
-    else {
-        activeCharacter.skeleton.scaleX = 1;
-    }
+    setDirection(direction);
 
     window.electronAPI
         .getWindowPosition()
@@ -467,8 +468,7 @@ function walkPet(
 
                     direction = preferredDirection;
 
-                    activeCharacter.skeleton.scaleX =
-                        direction === "left" ? -1 : 1;
+                    setDirection(direction);
 
                     startX = currentX;
 
@@ -1566,10 +1566,6 @@ function render() {
     activeCharacter.animationState.apply(
         activeCharacter.skeleton
     );
-    activeCharacter.skeleton.scaleX =
-        currentDirection === "left"
-            ? -1
-            : 1;
 
     activeCharacter.skeleton.x = 420;
     activeCharacter.skeleton.y = 180;
