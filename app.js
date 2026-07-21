@@ -427,10 +427,10 @@ function walkPet(
                     const goNormal = Math.random() < 0.5;
 
                     if (goNormal) {
-                        setMode("normal");
+                        setMode("normal", false);
                     }
                     else {
-                        setMode("base");
+                        setMode("base", false);
                     }
 
                     finishBehavior();
@@ -1566,6 +1566,10 @@ function render() {
     activeCharacter.animationState.apply(
         activeCharacter.skeleton
     );
+    activeCharacter.skeleton.scaleX =
+        currentDirection === "left"
+            ? -1
+            : 1;
 
     activeCharacter.skeleton.x = 420;
     activeCharacter.skeleton.y = 180;
