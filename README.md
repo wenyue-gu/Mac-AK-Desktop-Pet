@@ -39,8 +39,3 @@ Alternatively:
 2. base: Default
 3. normal: Default
 4. normal: Skill_Down_2_Begin (skill 2 always begin as regular pose/up)
-
-
-## Next steps:
-
-1. Add other outfit and add switch outfit option in the menu bar
