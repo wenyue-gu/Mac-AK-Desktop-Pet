@@ -192,6 +192,7 @@ let petBounds = {
     left: 0,
     width: 0
 };
+let behaviorId = 0;
 
 
 function createCharacters(files) {
@@ -581,6 +582,7 @@ function playAnimationBackward(name) {
 }
 
 function playBehavior(name) {
+    behaviorId++;
 
     const owner =
         behaviorSources[name];
@@ -707,7 +709,7 @@ function playPhasedSkill(
     idleAnimation,
     endAnimation
 ) {
-
+    const myBehaviorId = behaviorId;
     currentBehavior = behaviorName;
 
     stopWalking();
@@ -725,7 +727,8 @@ function playPhasedSkill(
     beginTrack.listener = {
         complete: () => {
 
-            if (currentBehavior !== behaviorName) {
+            if (behaviorId !== myBehaviorId ||
+                currentBehavior !== behaviorName) {
                 return;
             }
 
@@ -740,7 +743,8 @@ function playPhasedSkill(
 
             behaviorTimer = setTimeout(() => {
 
-                if (currentBehavior !== behaviorName || isInteracting) {
+                if (behaviorId !== myBehaviorId ||
+                    currentBehavior !== behaviorName || isInteracting) {
                     return;
                 }
 
@@ -770,6 +774,7 @@ function playPhasedSkill(
 }
 
 function playSkill1Behavior() {
+    const myBehaviorId = behaviorId;
 
     currentBehavior = "Skill1";
 
@@ -796,7 +801,8 @@ function playSkill1Behavior() {
 
             behaviorTimer = setTimeout(() => {
 
-                if (currentBehavior !== "Skill1") {
+                if (behaviorId !== myBehaviorId ||
+                    currentBehavior !== "Skill1") {
                     return;
                 }
 
@@ -823,6 +829,7 @@ function playSkill1Behavior() {
 
 
 function playSkill2Behavior() {
+    const myBehaviorId = behaviorId;
 
     currentBehavior = "Skill2";
     skill2Down = false;
@@ -852,7 +859,7 @@ function playSkill2Behavior() {
 
             behaviorTimer = setTimeout(() => {
 
-                if (currentBehavior !== "Skill2") {
+                if (behaviorId !== myBehaviorId || currentBehavior !== "Skill2") {
                     return;
                 }
 
@@ -1016,8 +1023,8 @@ function startRandomBehavior() {
 
     function scheduleNext() {
         const delay =
-            // 5000;
-            15000 + Math.random() * 25000;
+            5000;
+            // 15000 + Math.random() * 25000;
         setTimeout(
             chooseBehavior,
             delay
@@ -1372,6 +1379,16 @@ function loadEverything() {
     );
 
     window.switchCharacter = function() {
+        stopWalking();
+
+        if (behaviorTimer) {
+            clearTimeout(behaviorTimer);
+            behaviorTimer = null;
+        }
+
+        behaviorId++;
+        currentBehavior = "Relax";
+        isInteracting = false;
 
         if (currentMode === "base") {
             setMode("normal");
@@ -1379,18 +1396,17 @@ function loadEverything() {
         else {
             setMode("base");
         }
+
         window.electronAPI.log(
             "switched to " + currentMode
         );
+
+        startRandomBehavior();
     };
 
     window.addEventListener(
         "keydown",
         (e) => {
-            window.electronAPI.log(
-                "key pressed = " + e.key
-            );
-
             if (e.key.toLowerCase() === "c") {
                 window.switchCharacter();
             }
