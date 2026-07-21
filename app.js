@@ -990,7 +990,7 @@ function startRandomBehavior() {
     const dockBehaviors = [
         {
             name: "Sit",
-            chance: 2
+            chance: 1
         },
         {
             name: "Special",
