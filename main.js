@@ -180,7 +180,7 @@ app.whenReady().then(() => {
                 label: "Outfit",
                 submenu: [
                     {
-                        label: "Outfit 1",
+                        label: "Radiant Serenity",
                         type: "radio",
                         checked: true,
                         click() {
@@ -191,7 +191,7 @@ app.whenReady().then(() => {
                         }
                     },
                     {
-                        label: "Outfit 2",
+                        label: "Default RI Uniform",
                         type: "radio",
                         click() {
                             win.webContents.send(
