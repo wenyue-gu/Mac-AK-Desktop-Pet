@@ -1402,6 +1402,7 @@ function switchOutfit(index) {
     else {
         playIdle();
         currentBehavior = "Relax";
+        startRandomBehavior();
     }
 }
 
