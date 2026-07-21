@@ -9,6 +9,7 @@ Alternatively:
 3. npm run build
 4. open the dist folder that the prior cmd should've created, then the folder mac-arm64
 5. double click the .app file inside to run it (no terminal needed, app runs in background, quit app by clicking the icon on the top menu bar and select Quit)
+6. Default outfit is Radient Serenity, use the menu bar dropdown to switch to RI Uniform outfit.
 
 
 ## Expected behavior:
@@ -26,8 +27,10 @@ Alternatively:
     * Click during S3 plays the S3 attack
 * Base mode
     * Pet will choose between behaviors: Sit, Special, and Move
+        * RI Uniform outfit does not have Special animation, so will only pick between Sit and Move
     * Sit only happens on the dock area, which is currently hardcoded to my computer. You may want to edit it to fit your computer
     * Click during any of base mode animation (including move) will play the Interact animation
+* While app is in focus, press c to switch between base and normal mode (this is a debug feature that I thought was useful so left it in)
 * When the quit button is presssed on the menu bar icon, pet plays the Die animation before app quits
 
 ## Unused animations:
