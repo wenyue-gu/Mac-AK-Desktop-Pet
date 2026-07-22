@@ -2,7 +2,9 @@ const { app, BrowserWindow, ipcMain, screen, Tray, Menu } = require("electron");
 
 let win;
 let mouseWatcher;
-let mouseOverPet = false;
+// null (not false) so the watcher's first tick always applies the correct
+// ignore state instead of waiting for an inside/outside transition.
+let mouseOverPet = null;
 let petBounds = null;
 
 function createWindow() {
@@ -35,7 +37,12 @@ function createWindow() {
             visibleOnFullScreen:true
         }
     );
-    win.setIgnoreMouseEvents(false);
+    // Default to click-through (ignore mouse) so everything outside the pet
+    // passes through from the moment the window appears. The watcher flips this
+    // off only while the cursor is actually over the pet. Starting with `false`
+    // here left the whole window capturing clicks until the first hover
+    // transition corrected it.
+    win.setIgnoreMouseEvents(true, { forward: true });
     win.loadFile("index.html");
     // win.webContents.openDevTools();
 }
@@ -151,6 +158,23 @@ ipcMain.on(
     }
 );
 
+ipcMain.on(
+    "outfit-changed",
+    (event, index) => {
+        if (!contextMenu) {
+            return;
+        }
+
+        // Sync the tray radio to the outfit the renderer actually switched to
+        // (e.g. via the "s" keyboard shortcut, which the menu can't see).
+        const item = contextMenu.getMenuItemById("outfit-" + index);
+
+        if (item) {
+            item.checked = true;
+        }
+    }
+);
+
 app.whenReady().then(() => {
     createWindow();
     startMouseWatcher();
@@ -170,6 +194,7 @@ app.on(
 const path = require("path");
 
 let tray;
+let contextMenu;
 let quitting = false;
 
 app.whenReady().then(() => {
@@ -178,11 +203,12 @@ app.whenReady().then(() => {
         path.join(__dirname, "tray_icon3.png")
     );
 
-    const contextMenu = Menu.buildFromTemplate([
+    contextMenu = Menu.buildFromTemplate([
             {
                 label: "Outfit",
                 submenu: [
                     {
+                        id: "outfit-0",
                         label: "Radiant Serenity",
                         type: "radio",
                         checked: true,
@@ -194,6 +220,7 @@ app.whenReady().then(() => {
                         }
                     },
                     {
+                        id: "outfit-1",
                         label: "RI Uniform",
                         type: "radio",
                         click() {

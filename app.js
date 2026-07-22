@@ -1332,9 +1332,9 @@ function playInteract() {
     };
 }
 
-function restoreAnimationAfterSwitch(name, loop, time) {
+function restoreAnimationAfterSwitch(name, loop, time, wasInteracting) {
 
-    const savedBehavior = currentBehavior;
+    const savedBehaviorId = behaviorId;
 
     window.electronAPI.log(
         "Restoring animation after outfit switch: " + name
@@ -1352,32 +1352,37 @@ function restoreAnimationAfterSwitch(name, loop, time) {
 
     track.trackTime = time;
 
-    if (!loop) {
-        track.listener = {
-            complete: () => {
-
-                if (savedBehavior === "Skill1") {
-                    isInteracting = false;
-                    playAnimation(
-                        "Skill_1_Idle",
-                        true
-                    );
-                    return;
-                }
-
-                if (savedBehavior === "Skill3") {
-                    isInteracting = false;
-                    playAnimation(
-                        "Skill_3_Idle",
-                        true
-                    );
-                    return;
-                }
-
-                finishBehavior();
-            }
-        };
+    // A looping animation gets no listener: the behavior's original timer/loop
+    // (which survives the outfit switch and still drives it) will run it to
+    // completion -- e.g. a skill idle whose timer plays its end, or a walk.
+    if (loop) {
+        return;
     }
+
+    // A non-looping animation is a one-shot phase whose completion used to be
+    // driven by a track listener on the *old* skeleton, which is gone. Rebuild
+    // that completion on the new track. If a surviving timer already advanced
+    // the behavior past us (behaviorId moved on), bail to avoid a double finish.
+    track.listener = {
+        complete: () => {
+            if (behaviorId !== savedBehaviorId) {
+                return;
+            }
+
+            // Mid-interact: replay the interact's completion so it continues
+            // in the new outfit (e.g. Skill_3_Attack -> Skill_3_Idle -> timer
+            // -> Skill_3_End -> idle -> resume normal scheduling).
+            if (wasInteracting) {
+                isInteracting = false;
+                resumeSkillAfterInteract();
+                return;
+            }
+
+            // Otherwise this was a begin/end phase: just finish and return to
+            // the normal cycle.
+            finishBehavior();
+        }
+    };
 }
 
 function getCurrentAnimation() {
@@ -1403,29 +1408,35 @@ function switchOutfit(index) {
     const currentAnimation = getCurrentAnimation();
     const oldMode = currentMode;
     const oldBehavior = currentBehavior;
-
-    // Tear down anything driving the current (about-to-be-replaced) skeleton:
-    // the walk loop and any pending behavior timer, both of which would
-    // otherwise keep mutating the new skeleton alongside the restored state.
-    stopWalking();
-
-    if (behaviorTimer) {
-        clearTimeout(behaviorTimer);
-        behaviorTimer = null;
-    }
-
-    behaviorId++;
+    // An interact's completion listener (which resets this flag and resumes the
+    // skill) lives on the skeleton we're about to discard, so we remember here
+    // that one was in progress and rebuild that completion on the new track.
+    const wasInteracting = isInteracting;
 
     currentOutfit = index;
 
+    // Keep the tray menu's outfit radio in sync (covers the keyboard toggle,
+    // not just tray clicks).
+    window.electronAPI.notifyOutfitChanged(currentOutfit);
+
     const files = outfitFiles[currentOutfit];
 
+    // Rebuild the skeletons for the new outfit. We deliberately DON'T stop the
+    // walk loop, clear the behavior timer, or bump behaviorId here: those are
+    // exactly what let the in-progress behavior keep running on the new
+    // skeleton. Both outfits share animation names, so the walk loop and skill
+    // timers just carry on and finish normally -- a walk keeps moving and then
+    // rolls base-vs-normal, a skill runs out its timer and plays its end.
     createCharacters(files);
 
     currentBehavior = oldBehavior;
 
     setMode(oldMode, false);
 
+    // Re-play the current animation on the new skeleton so the pose matches
+    // (the freshly built skeleton starts in its setup pose otherwise). If the
+    // new outfit doesn't have this animation -- Special only exists in one
+    // outfit -- fall back to idle and resume the normal cycle.
     if (
         currentAnimation &&
         activeCharacter.animations.includes(
@@ -1435,10 +1446,12 @@ function switchOutfit(index) {
         restoreAnimationAfterSwitch(
             currentAnimation.name,
             currentAnimation.loop,
-            currentAnimation.time
+            currentAnimation.time,
+            wasInteracting
         );
     }
     else {
+        isInteracting = false;
         playIdle();
         currentBehavior = "Relax";
         startRandomBehavior();
@@ -1489,8 +1502,15 @@ function loadEverything() {
     window.addEventListener(
         "keydown",
         (e) => {
-            if (e.key.toLowerCase() === "c") {
+            const key = e.key.toLowerCase();
+
+            if (key === "c") {
                 window.switchCharacter();
+            }
+            else if (key === "s") {
+                // Toggle between the two outfits (0 <-> 1). Handy for testing
+                // outfit switches mid-behavior/interact from the keyboard.
+                switchOutfit(currentOutfit === 0 ? 1 : 0);
             }
         }
     );

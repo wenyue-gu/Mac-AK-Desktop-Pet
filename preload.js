@@ -84,5 +84,11 @@ contextBridge.exposeInMainWorld(
                 (event, index) => callback(index)
             ),
 
+        notifyOutfitChanged: (index) =>
+            ipcRenderer.send(
+                "outfit-changed",
+                index
+            ),
+
     }
 );
