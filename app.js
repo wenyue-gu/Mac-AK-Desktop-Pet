@@ -1,4 +1,10 @@
 import spine from "./spine/spine-webgl.js";
+import {
+    safeNumber,
+    chooseWalkDirection,
+    clampWalkPosition,
+    DragController
+} from "./petUtils.mjs";
 
 const canvas = document.getElementById("canvas");
 
@@ -127,6 +133,7 @@ let activeCharacter;
 let currentMode = "normal";
 let currentOutfit = 0;
 let isInteracting = false;
+let isQuitting = false;
 
 const behaviorSources = {
     Move: "shared",
@@ -220,18 +227,6 @@ function createCharacters(files) {
     };
 }
 
-function safeNumber(value) {
-    let result = Number.isFinite(value)
-        ? Math.round(value)
-        : 0;
-
-    if (Object.is(result, -0)) {
-        result = 0;
-    }
-
-    return result;
-}
-
 function stopWalking() {
     if (walkingTimer) {
         cancelAnimationFrame(walkingTimer);
@@ -239,24 +234,6 @@ function stopWalking() {
 
     walkingTimer = null;
     isWalking = false;
-}
-
-function chooseWalkDirection() {
-    if (!preferredDirection) {
-        return Math.random() < 0.5
-            ? "left"
-            : "right";
-    }
-
-    const roll = Math.random();
-
-    if (roll < 0.7) {
-        return preferredDirection;
-    }
-
-    return preferredDirection === "left"
-        ? "right"
-        : "left";
 }
 
 function setDirection(direction) {
@@ -297,6 +274,10 @@ function finishBehavior(source = "unknown", force = false) {
     }
 
     isInteracting = false;
+
+    // Bump the staleness token so any timers / animation listeners still
+    // pending from the behavior we just finished become no-ops when they fire.
+    behaviorId++;
 
     currentBehavior = "Relax";
 
@@ -444,17 +425,17 @@ function walkPet(
                         ? startX - distance * progress
                         : startX + distance * progress;
 
-                let hitEdge = false;
+                const clamp = clampWalkPosition(
+                    currentX,
+                    petBounds.left,
+                    rightLimit
+                );
 
-                if (currentX + petBounds.left <= 5) {
-                    currentX = 5-petBounds.left;
-                    preferredDirection = "right";
-                    hitEdge = true;
-                }
-                if (currentX >= rightLimit-5) {
-                    currentX = rightLimit-5;
-                    preferredDirection = "left";
-                    hitEdge = true;
+                currentX = clamp.x;
+                const hitEdge = clamp.hitEdge;
+
+                if (clamp.preferredDirection) {
+                    preferredDirection = clamp.preferredDirection;
                 }
 
                 if (hitEdge) {
@@ -599,6 +580,16 @@ function playAnimationBackward(name) {
 }
 
 function playBehavior(name) {
+    if (isQuitting) {
+        return;
+    }
+
+    // A new behavior supersedes anything scheduled by the previous one.
+    if (behaviorTimer) {
+        clearTimeout(behaviorTimer);
+        behaviorTimer = null;
+    }
+
     behaviorId++;
 
     const owner =
@@ -661,7 +652,7 @@ function playMoveBehavior() {
     behaviorTimer = setTimeout(() => {
 
         const direction =
-            chooseWalkDirection();
+            chooseWalkDirection(preferredDirection);
 
         walkPet(
             direction,
@@ -835,6 +826,9 @@ function playSkill1Behavior() {
 
                 reverseTrack.listener = {
                     complete: () => {
+                        if (behaviorId !== myBehaviorId) {
+                            return;
+                        }
                         finishBehavior();
                     }
                 };
@@ -958,7 +952,28 @@ function playSkill3Behavior() {
 
 function playQuitAnimation() {
 
+    if (isQuitting) {
+        return;
+    }
+
+    // Quitting takes over completely: no random behavior, interact, or leftover
+    // timer may interrupt the Die animation, or confirmQuit would never fire.
+    isQuitting = true;
+    isInteracting = true;
+
     stopWalking();
+
+    if (behaviorTimer) {
+        clearTimeout(behaviorTimer);
+        behaviorTimer = null;
+    }
+
+    if (randomBehaviorTimer) {
+        clearTimeout(randomBehaviorTimer);
+        randomBehaviorTimer = null;
+    }
+
+    behaviorId++;
 
     currentBehavior = "Die";
 
@@ -973,7 +988,6 @@ function playQuitAnimation() {
     );
 
     if (!track) {
-        finishBehavior();
         window.electronAPI.confirmQuit();
         return;
     }
@@ -1056,11 +1070,20 @@ function startRandomBehavior() {
     }
 
     async function chooseBehavior() {
-        if (isInteracting) {
+        if (isInteracting || isQuitting) {
             scheduleNext();
             return;
         }
         const onDock = await isOnDock();
+
+        // State may have changed while isOnDock() was resolving (e.g. the user
+        // clicked to interact, or a quit was requested). Re-check before acting
+        // so we don't clobber whatever started in the meantime.
+        if (isInteracting || isQuitting) {
+            scheduleNext();
+            return;
+        }
+
         let behaviors = onDock
             ? dockBehaviors
             : baseBehaviors;
@@ -1201,6 +1224,10 @@ function resumeSkillAfterInteract() {
 }
 
 function playInteract() {
+
+    if (isQuitting) {
+        return;
+    }
 
     stopWalking();
 
@@ -1369,13 +1396,25 @@ function getCurrentAnimation() {
 
 function switchOutfit(index) {
 
-    if (index === currentOutfit) {
+    if (index === currentOutfit || isQuitting) {
         return;
     }
 
     const currentAnimation = getCurrentAnimation();
     const oldMode = currentMode;
     const oldBehavior = currentBehavior;
+
+    // Tear down anything driving the current (about-to-be-replaced) skeleton:
+    // the walk loop and any pending behavior timer, both of which would
+    // otherwise keep mutating the new skeleton alongside the restored state.
+    stopWalking();
+
+    if (behaviorTimer) {
+        clearTimeout(behaviorTimer);
+        behaviorTimer = null;
+    }
+
+    behaviorId++;
 
     currentOutfit = index;
 
@@ -1418,6 +1457,10 @@ function loadEverything() {
     );
 
     window.switchCharacter = function() {
+        if (isQuitting) {
+            return;
+        }
+
         stopWalking();
 
         if (behaviorTimer) {
@@ -1473,11 +1516,10 @@ function loadEverything() {
 
 // dragging
 
-let dragging = false;
-let startMouseX = 0;
-let startMouseY = 0;
-let startWindowX = 0;
-let startWindowY = 0;
+const dragController = new DragController(
+    () => window.electronAPI.getWindowPosition(),
+    (x, y) => window.electronAPI.moveWindow(x, y)
+);
 
 petHitbox.addEventListener(
     "mousedown",
@@ -1488,42 +1530,21 @@ petHitbox.addEventListener(
         stopWalking();
         preferredDirection = null;
 
-        startMouseX = e.screenX;
-        startMouseY = e.screenY;
-
-        window.electronAPI
-            .getWindowPosition()
-            .then(pos => {
-
-                startWindowX = pos[0];
-                startWindowY = pos[1];
-
-                dragging = true;
-            });
+        dragController.onPointerDown(e.screenX, e.screenY);
     }
 );
 
 window.addEventListener(
     "mousemove",
     (e) => {
-        if (!dragging)
-            return;
-        const dx =
-            e.screenX - startMouseX;
-        const dy =
-            e.screenY - startMouseY;
-
-        window.electronAPI.moveWindow(
-            startWindowX + dx,
-            startWindowY + dy
-        );
+        dragController.onPointerMove(e.screenX, e.screenY);
     }
 );
 
 window.addEventListener(
     "mouseup",
     () => {
-        dragging = false;
+        dragController.onPointerUp();
     }
 );
 
@@ -1557,7 +1578,15 @@ function render() {
         // Let this frame stay visible
         track.timeScale = 0;
 
+        // Capture the token now: if anything supersedes this behavior during
+        // the 50ms delay (a click, quit, outfit switch, etc.) we must NOT clear
+        // track 0, or we'd wipe the animation that replaced us.
+        const clampBehaviorId = behaviorId;
+
         setTimeout(() => {
+            if (behaviorId !== clampBehaviorId || isInteracting) {
+                return;
+            }
             activeCharacter.animationState.clearTrack(0);
             finishBehavior();
         }, 50);
@@ -1632,7 +1661,7 @@ petHitbox.addEventListener("mouseenter", () => {
 
 
 petHitbox.addEventListener("mouseleave", () => {
-    if (!dragging) {
+    if (!dragController.dragging) {
         window.electronAPI.setIgnoreMouse(true);
     }
 });

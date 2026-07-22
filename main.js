@@ -137,6 +137,9 @@ ipcMain.on("log", (event, msg) => {
 ipcMain.on(
     "confirm-quit",
     () => {
+        // Mark that we're really quitting so the before-quit guard below lets
+        // the app close instead of re-sending quit-request forever.
+        quitting = true;
         app.quit();
     }
 );
