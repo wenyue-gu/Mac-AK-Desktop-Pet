@@ -8,9 +8,6 @@ import {
 
 const canvas = document.getElementById("canvas");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
 const petHitbox = document.getElementById("petHitbox");
 let isWalking = false;
 
@@ -40,12 +37,34 @@ const mvp =
 
 const zoom = 2.2;
 
-mvp.ortho2d(
-    0,
-    0,
-    window.innerWidth * zoom,
-    window.innerHeight * zoom
-);
+// Recompute the canvas backing store and projection from the *current* window
+// size instead of snapshotting it once at load. The old code assumed the window
+// had already reached its final 400x400 the instant this script ran; when the
+// renderer won that race the character was correct, when it lost it (packaged
+// build after the macOS update shifted transparent-panel-window timing) the
+// backing store locked to a too-small size and CSS then stretched the character
+// larger and higher. Calling this every frame makes size timing-independent.
+function resize() {
+    // Only touch the backing store when the size actually changed; assigning
+    // canvas.width/height reallocates (and clears) the drawing buffer, so doing
+    // it unconditionally every frame would be wasteful.
+    if (canvas.width === window.innerWidth &&
+        canvas.height === window.innerHeight) {
+        return;
+    }
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    context.gl.viewport(0, 0, canvas.width, canvas.height);
+    mvp.ortho2d(
+        0,
+        0,
+        window.innerWidth * zoom,
+        window.innerHeight * zoom
+    );
+}
+
+resize();
+window.addEventListener("resize", resize);
 
 const assetManager =
     new spine.webgl.AssetManager(context);
@@ -1577,6 +1596,10 @@ function render() {
     requestAnimationFrame(render);
     if (!activeCharacter)
         return;
+
+    // Keep backing store + projection matched to the live window size, so the
+    // character's scale/position never depend on when the window settled.
+    resize();
 
     const now =
         Date.now() / 1000;

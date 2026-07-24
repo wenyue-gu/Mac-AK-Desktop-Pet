@@ -12,6 +12,9 @@ function createWindow() {
     win = new BrowserWindow({
         width:400,
         height:400,
+        // Treat 400x400 as the content (web) size, not the outer window size, so
+        // window.innerWidth/innerHeight in the renderer reliably equal 400x400.
+        useContentSize:true,
 
         transparent:true,
         hasShadow:false,
@@ -44,6 +47,17 @@ function createWindow() {
     // transition corrected it.
     win.setIgnoreMouseEvents(true, { forward: true });
     win.loadFile("index.html");
+
+    // Chromium persists a per-URL zoom level in userData. A stray zoom (an
+    // accidental Cmd+= or trackpad pinch) got saved for the packaged app's
+    // file:// URL, so the built app rendered the character ~10% larger (and thus
+    // higher) than `npm start`, whose different URL had no stored zoom. Force
+    // 100% on every load and clamp pinch-zoom so this can't drift again.
+    win.webContents.on("did-finish-load", () => {
+        win.webContents.setZoomLevel(0);
+        win.webContents.setVisualZoomLevelLimits(1, 1);
+    });
+
     // win.webContents.openDevTools();
 }
 
