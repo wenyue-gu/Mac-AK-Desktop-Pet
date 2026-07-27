@@ -2,14 +2,15 @@
 
 1. Have npm installed
 2. cd into this folder (desktop_pet2)
-3. npm start (this will bring up the pet but you cannot close the terminal window or control c to quit there, or the program is stopped and the pet goes away.)
+3. run npm install electron --save-dev to install electron builder
+4. npm start (this will bring up the pet but you cannot close the terminal window or control c to quit there, or the program is stopped and the pet goes away.)
 
 Alternatively:
 
-3. npm run build
-4. open the dist folder that the prior cmd should've created, then the folder mac-universal
-5. double click the .app file inside to run it (no terminal needed, app runs in background, quit app by clicking the icon on the top menu bar and select Quit)
-6. Default outfit is Radient Serenity, use the menu bar dropdown to switch to RI Uniform outfit.
+4. npm run build
+5. open the dist folder that the prior cmd should've created, then the folder mac-universal
+6. double click the .app file inside to run it (no terminal needed, app runs in background, quit app by clicking the icon on the top menu bar and select Quit)
+7. Default outfit is Radient Serenity, use the menu bar dropdown to switch to RI Uniform outfit.
 
 
 ## Expected behavior:
