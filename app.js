@@ -1,4 +1,4 @@
-import spine from "./spine.webgl.js";
+import spine from "./spine/spine-webgl.js";
 import {
     safeNumber,
     chooseWalkDirection,
@@ -75,47 +75,46 @@ const outfitFiles = [
     [
         {
             skel:
-                "build_char_4133_logos_ambienceSynesthesia_6.skel",
+                "character/build_char_4133_logos_ambienceSynesthesia_6.skel",
             atlas:
-                "build_char_4133_logos_ambienceSynesthesia_6.atlas"
+                "character/build_char_4133_logos_ambienceSynesthesia_6.atlas"
         },
         {
             skel:
-                "char_4133_logos_ambienceSynesthesia_6.skel",
+                "character/char_4133_logos_ambienceSynesthesia_6.skel",
             atlas:
-                "char_4133_logos_ambienceSynesthesia_6.atlas"
+                "character/char_4133_logos_ambienceSynesthesia_6.atlas"
         }
     ],
 
     [
         {
             skel:
-                "build_char_4133_logos.skel",
+                "character/build_char_4133_logos.skel",
             atlas:
-                "build_char_4133_logos.atlas"
+                "character/build_char_4133_logos.atlas"
         },
         {
             skel:
-                "char_4133_logos.skel",
+                "character/char_4133_logos.skel",
             atlas:
-                "char_4133_logos.atlas"
+                "character/char_4133_logos.atlas"
         }
     ],
 
-]
-
+@@ -107,15 +107,15 @@ const outfitFiles = [
 // const characterFiles = [
 //     {
 //         skel:
-//             "build_char_4133_logos_ambienceSynesthesia_6.skel",
+//             "character/build_char_4133_logos_ambienceSynesthesia_6.skel",
 //         atlas:
-//             "build_char_4133_logos_ambienceSynesthesia_6.atlas"
+//             "character/build_char_4133_logos_ambienceSynesthesia_6.atlas"
 //     },
 //     {
 //         skel:
-//             "char_4133_logos_ambienceSynesthesia_6.skel",
+//             "character/char_4133_logos_ambienceSynesthesia_6.skel",
 //         atlas:
-//             "char_4133_logos_ambienceSynesthesia_6.atlas"
+//             "character/char_4133_logos_ambienceSynesthesia_6.atlas"
 //     }
 // ];
 
