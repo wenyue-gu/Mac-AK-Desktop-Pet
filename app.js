@@ -104,21 +104,6 @@ const outfitFiles = [
 
 ]
 
-// const characterFiles = [
-//     {
-//         skel:
-//             "character/build_char_4133_logos_ambienceSynesthesia_6.skel",
-//         atlas:
-//             "character/build_char_4133_logos_ambienceSynesthesia_6.atlas"
-//     },
-//     {
-//         skel:
-//             "character/char_4133_logos_ambienceSynesthesia_6.skel",
-//         atlas:
-//             "character/char_4133_logos_ambienceSynesthesia_6.atlas"
-//     }
-// ];
-
 // loading
 
 let loadedAssets = 0;
@@ -214,6 +199,8 @@ let preferredDirection = null;
 let currentDirection = "right";
 let currentBehavior = "Relax";
 let skill2Down = false;
+// Seconds of crossfade between the two Skill 2 poses.
+const SKILL2_POSE_MIX = 0.12;
 let petBounds = {
     left: 0,
     width: 0
@@ -918,21 +905,18 @@ function switchSkill2Mode() {
 
     skill2Down = !skill2Down;
 
-    if (skill2Down) {
+    const track = playAnimation(
+        skill2Down
+            ? "Skill_Down_2_Loop"
+            : "Skill_2_Loop",
+        true
+    );
 
-        playAnimation(
-            "Skill_Down_2_Loop",
-            true
-        );
-
-    }
-    else {
-
-        playAnimation(
-            "Skill_2_Loop",
-            true
-        );
-
+    // Crossfade the two poses so the arm visibly lowers/raises instead of
+    // snapping. Set per-track (not via stateData.defaultMix) so every other
+    // animation transition keeps its existing hard cut.
+    if (track) {
+        track.mixDuration = SKILL2_POSE_MIX;
     }
 }
 
