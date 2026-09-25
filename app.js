@@ -211,6 +211,8 @@ let currentBehavior = "Relax";
 let skill2Down = false;
 // Seconds of crossfade between the two Skill 2 poses.
 const SKILL2_POSE_MIX = 0.12;
+// Seconds of crossfade between the base idle and Sit, in both directions.
+const SIT_MIX = 0.12;
 let petBounds = {
     left: 0,
     width: 0
@@ -263,14 +265,23 @@ function setDirection(direction) {
     }
 }
 
-function playIdle() {
+function playIdle(mixDuration = 0) {
 
-    activeCharacter.animationState.clearTrack(0);
+    // A crossfade needs the outgoing animation left on the track to mix from,
+    // so only clear it in the default (hard-cut) case -- every existing caller
+    // passes no argument and keeps the old behavior exactly.
+    if (!mixDuration) {
+        activeCharacter.animationState.clearTrack(0);
+    }
 
-    playAnimation(
+    const track = playAnimation(
         activeCharacter.defaultIdle,
         true
     );
+
+    if (track && mixDuration) {
+        track.mixDuration = mixDuration;
+    }
 }
 
 function finishBehavior(source = "unknown", force = false) {
@@ -295,9 +306,13 @@ function finishBehavior(source = "unknown", force = false) {
     // pending from the behavior we just finished become no-ops when they fire.
     behaviorId++;
 
+    // Sit -> idle is the one return that crossfades; the pet stands back up
+    // instead of popping. Everything else still cuts straight to the idle.
+    const wasSitting = currentBehavior === "Sit";
+
     currentBehavior = "Relax";
 
-    playIdle();
+    playIdle(wasSitting ? SIT_MIX : 0);
 
     startRandomBehavior();
 }
@@ -685,10 +700,24 @@ function playSitBehavior() {
 
     stopWalking();
 
-    playAnimation(
+    // Crossfade only when we're actually coming out of the idle, so entering
+    // Sit from anything else (a walk, a mode switch) still cuts as before.
+    const previous =
+        activeCharacter.animationState.getCurrent(0);
+
+    const fromIdle =
+        previous &&
+        previous.animation &&
+        previous.animation.name === activeCharacter.defaultIdle;
+
+    const sitTrack = playAnimation(
         "Sit",
         true
     );
+
+    if (sitTrack && fromIdle) {
+        sitTrack.mixDuration = SIT_MIX;
+    }
 
     const sitDuration =
         5000 + Math.random() * 5000;
