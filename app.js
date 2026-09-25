@@ -1,4 +1,4 @@
-import spine from "./spine/spine-webgl.js";
+import spine from "./spine.webgl.js";
 import {
     safeNumber,
     chooseWalkDirection,
@@ -75,30 +75,30 @@ const outfitFiles = [
     [
         {
             skel:
-                "character/build_char_4133_logos_ambienceSynesthesia_6.skel",
+                "build_char_4133_logos_ambienceSynesthesia_6.skel",
             atlas:
-                "character/build_char_4133_logos_ambienceSynesthesia_6.atlas"
+                "build_char_4133_logos_ambienceSynesthesia_6.atlas"
         },
         {
             skel:
-                "character/char_4133_logos_ambienceSynesthesia_6.skel",
+                "char_4133_logos_ambienceSynesthesia_6.skel",
             atlas:
-                "character/char_4133_logos_ambienceSynesthesia_6.atlas"
+                "char_4133_logos_ambienceSynesthesia_6.atlas"
         }
     ],
 
     [
         {
             skel:
-                "character/build_char_4133_logos.skel",
+                "build_char_4133_logos.skel",
             atlas:
-                "character/build_char_4133_logos.atlas"
+                "build_char_4133_logos.atlas"
         },
         {
             skel:
-                "character/char_4133_logos.skel",
+                "char_4133_logos.skel",
             atlas:
-                "character/char_4133_logos.atlas"
+                "char_4133_logos.atlas"
         }
     ],
 
@@ -107,15 +107,15 @@ const outfitFiles = [
 // const characterFiles = [
 //     {
 //         skel:
-//             "character/build_char_4133_logos_ambienceSynesthesia_6.skel",
+//             "build_char_4133_logos_ambienceSynesthesia_6.skel",
 //         atlas:
-//             "character/build_char_4133_logos_ambienceSynesthesia_6.atlas"
+//             "build_char_4133_logos_ambienceSynesthesia_6.atlas"
 //     },
 //     {
 //         skel:
-//             "character/char_4133_logos_ambienceSynesthesia_6.skel",
+//             "char_4133_logos_ambienceSynesthesia_6.skel",
 //         atlas:
-//             "character/char_4133_logos_ambienceSynesthesia_6.atlas"
+//             "char_4133_logos_ambienceSynesthesia_6.atlas"
 //     }
 // ];
 
@@ -573,6 +573,27 @@ function playAnimation(name, loop = true) {
     );
 }
 
+// Queue an animation to start as soon as the current one on track 0 finishes,
+// so a transition clip can run through before the pose it leads into.
+function queueAnimation(name, loop = true) {
+
+    if (!activeCharacter.animations.includes(name)) {
+        window.electronAPI.log(
+            activeCharacter.type +
+            " does not have " +
+            name
+        );
+        return null;
+    }
+
+    return activeCharacter.animationState.addAnimation(
+        0,
+        name,
+        loop,
+        0
+    );
+}
+
 function playAnimationBackward(name) {
 
     const animation =
@@ -918,9 +939,16 @@ function switchSkill2Mode() {
 
     skill2Down = !skill2Down;
 
+    // Play the Begin clip for the pose we are switching into, then queue its
+    // Loop, so the swap is a visible movement instead of an instant snap.
     if (skill2Down) {
 
         playAnimation(
+            "Skill_Down_2_Begin",
+            false
+        );
+
+        queueAnimation(
             "Skill_Down_2_Loop",
             true
         );
@@ -929,6 +957,11 @@ function switchSkill2Mode() {
     else {
 
         playAnimation(
+            "Skill_2_Begin",
+            false
+        );
+
+        queueAnimation(
             "Skill_2_Loop",
             true
         );
