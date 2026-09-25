@@ -45,15 +45,25 @@ const zoom = 2.2;
 // backing store locked to a too-small size and CSS then stretched the character
 // larger and higher. Calling this every frame makes size timing-independent.
 function resize() {
+    // Render at the display's true pixel density. CSS still lays the canvas out
+    // at window size (width/height: 100%), so only the backing store grows --
+    // the character is drawn with 2x the samples on a Retina screen instead of
+    // being drawn at 1x and upscaled by the compositor, which is what made it
+    // look soft. The projection below stays in CSS-pixel world units, so
+    // framing, scale and position are unchanged.
+    const dpr = window.devicePixelRatio || 1;
+    const bufferWidth = Math.round(window.innerWidth * dpr);
+    const bufferHeight = Math.round(window.innerHeight * dpr);
+
     // Only touch the backing store when the size actually changed; assigning
     // canvas.width/height reallocates (and clears) the drawing buffer, so doing
     // it unconditionally every frame would be wasteful.
-    if (canvas.width === window.innerWidth &&
-        canvas.height === window.innerHeight) {
+    if (canvas.width === bufferWidth &&
+        canvas.height === bufferHeight) {
         return;
     }
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = bufferWidth;
+    canvas.height = bufferHeight;
     context.gl.viewport(0, 0, canvas.width, canvas.height);
     mvp.ortho2d(
         0,
@@ -1645,15 +1655,17 @@ function render() {
     petHitbox.style.left =
     (offset.x / zoom) + "px";
 
+    // window.innerHeight, not canvas.height: the backing store is now in device
+    // pixels, while the hitbox and the reported bounds are CSS pixels.
     petHitbox.style.top =
-        ((canvas.height * zoom - offset.y - size.y) / zoom) + "px";
+        ((window.innerHeight * zoom - offset.y - size.y) / zoom) + "px";
 
     petBounds.left = offset.x / zoom;
     petBounds.width = size.x / zoom;
 
     window.electronAPI.updatePetBounds({
         left: petBounds.left,
-        top: canvas.height - (offset.y + size.y) / zoom,
+        top: window.innerHeight - (offset.y + size.y) / zoom,
         width: petBounds.width,
         height: size.y / zoom
     });
