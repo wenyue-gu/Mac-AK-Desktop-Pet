@@ -842,20 +842,10 @@ function playSkill1Behavior() {
     beginTrack.listener = {
         complete: () => {
 
-            const idleTrack = playAnimation(
+            playAnimation(
                 "Skill_1_Idle",
                 true
             );
-
-            // Loop Skill_1_Idle a whole number of times so we never cut it off
-            // mid-cycle (a fixed 5000ms did, which looked janky). Aim for ~5s of
-            // dwell, then round to the nearest full multiple of the loop's own
-            // length. Falls back to 5000ms if the track/animation is missing.
-            const loopMs = idleTrack
-                ? idleTrack.animation.duration * 1000
-                : 5000;
-            const idleDuration =
-                Math.max(1, Math.round(5000 / loopMs)) * loopMs;
 
             behaviorTimer = setTimeout(() => {
 
@@ -882,7 +872,7 @@ function playSkill1Behavior() {
                     }
                 };
 
-            }, idleDuration);
+            }, 5000);
         }
     };
 }
