@@ -101,8 +101,8 @@ const outfitFiles = [
                 "character/char_4133_logos.atlas"
         }
     ],
+]
 
-@@ -107,15 +107,15 @@ const outfitFiles = [
 // const characterFiles = [
 //     {
 //         skel:
