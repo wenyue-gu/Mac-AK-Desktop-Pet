@@ -101,6 +101,7 @@ const outfitFiles = [
                 "character/char_4133_logos.atlas"
         }
     ],
+
 ]
 
 // const characterFiles = [
@@ -572,27 +573,6 @@ function playAnimation(name, loop = true) {
     );
 }
 
-// Queue an animation to start as soon as the current one on track 0 finishes,
-// so a transition clip can run through before the pose it leads into.
-function queueAnimation(name, loop = true) {
-
-    if (!activeCharacter.animations.includes(name)) {
-        window.electronAPI.log(
-            activeCharacter.type +
-            " does not have " +
-            name
-        );
-        return null;
-    }
-
-    return activeCharacter.animationState.addAnimation(
-        0,
-        name,
-        loop,
-        0
-    );
-}
-
 function playAnimationBackward(name) {
 
     const animation =
@@ -842,10 +822,20 @@ function playSkill1Behavior() {
     beginTrack.listener = {
         complete: () => {
 
-            playAnimation(
+            const idleTrack = playAnimation(
                 "Skill_1_Idle",
                 true
             );
+
+            // Loop Skill_1_Idle a whole number of times so we never cut it off
+            // mid-cycle (a fixed 5000ms did, which looked janky). Aim for ~5s of
+            // dwell, then round to the nearest full multiple of the loop's own
+            // length. Falls back to 5000ms if the track/animation is missing.
+            const loopMs = idleTrack
+                ? idleTrack.animation.duration * 1000
+                : 5000;
+            const idleDuration =
+                Math.max(1, Math.round(5000 / loopMs)) * loopMs;
 
             behaviorTimer = setTimeout(() => {
 
@@ -872,7 +862,7 @@ function playSkill1Behavior() {
                     }
                 };
 
-            }, 5000);
+            }, idleDuration);
         }
     };
 }
@@ -928,16 +918,9 @@ function switchSkill2Mode() {
 
     skill2Down = !skill2Down;
 
-    // Play the Begin clip for the pose we are switching into, then queue its
-    // Loop, so the swap is a visible movement instead of an instant snap.
     if (skill2Down) {
 
         playAnimation(
-            "Skill_Down_2_Begin",
-            false
-        );
-
-        queueAnimation(
             "Skill_Down_2_Loop",
             true
         );
@@ -946,11 +929,6 @@ function switchSkill2Mode() {
     else {
 
         playAnimation(
-            "Skill_2_Begin",
-            false
-        );
-
-        queueAnimation(
             "Skill_2_Loop",
             true
         );
